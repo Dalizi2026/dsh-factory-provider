@@ -1,0 +1,56 @@
+{
+  "name": "dsh-factory-provider",
+  "version": "0.6.1",
+  "description": "Factory (Droid) Pro subscription as native DSH LLM providers — reuses the local droid CLI credential through a loopback gateway, with a settings page for status, quota, account switching, and diagnostics. · 把 Factory Droid 订阅额度接入 DSH：回环网关 + 设置页（连接状态/多账号切换/订阅额度/路由模型/配置/诊断日志）。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "meta": {
+    "title": "Factory Provider",
+    "description": "Bring your Factory (Droid) Pro subscription quota into DSH as native LLM providers, with a settings page."
+  },
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "factory",
+    "droid",
+    "llm-provider",
+    "subscription"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dalizi2026/dsh-factory-provider"
+  },
+  "homepage": "https://github.com/Dalizi2026/dsh-factory-provider#readme"
+}

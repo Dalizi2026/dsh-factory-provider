@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Runtime state written by the plugin itself (never commit these)
+journal.jsonl
+apply-trace.log
+
+# Local account snapshots / credentials — must never be published
+.factory/
+auth.v2.*
+accounts/
+active.json
+*.prem.factory.ai
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
