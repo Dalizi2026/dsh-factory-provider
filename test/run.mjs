@@ -43,6 +43,8 @@ import {
   deleteAccount,
   getActiveAccountId,
   getCredentialMode,
+  activeApiKey,
+  saveApiKeyAccount,
   disableCredentials,
   useDefaultCredentials,
   listAccounts,
@@ -1216,20 +1218,32 @@ test("accounts: save/list/switch/delete roundtrip through the vault API", async 
   );
 });
 
-test("accounts: an api-key env still wins over the active account snapshot", async (t) => {
+test("accounts: a selected account wins over an ambient api-key env", async (t) => {
   const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-"));
   t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
   const defaultHome = seedFactoryHome(t, credsFor("user_a", "org_a"));
   await withEnv(
-    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: "fk-live" },
+    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: "fk-ambient-env-key" },
     async () => {
       saveCurrentAccount({ label: "main" });
       const accounts = listAccounts();
-      setActiveAccountId(accounts[0].id);
-      const resolver = createTokenResolver({ activeHome: () => activeAccountHome() });
-      const state = await resolver.resolve();
-      assert.equal(state.source, "api-key");
-      assert.equal(state.token, "fk-live");
+      const selected = accounts[0].id;
+
+      // Nothing selected: the ambient env key is what the gateway uses.
+      const bare = createTokenResolver({ activeHome: () => activeAccountHome() });
+      assert.equal((await bare.resolve()).token, "fk-ambient-env-key");
+
+      // Selecting an account is an explicit choice, so it beats the ambient
+      // variable — otherwise a leftover env key would silently pin the gateway
+      // to one account and make the account list look broken.
+      setActiveAccountId(selected);
+      const chosen = createTokenResolver({
+        activeHome: () => activeAccountHome(),
+        activeKey: () => activeApiKey(),
+      });
+      const state = await chosen.resolve();
+      assert.equal(state.source, "droid-cli");
+      assert.equal(jwtOf(state.token).sub, "user_a");
       setActiveAccountId(undefined);
     },
   );
@@ -2126,4 +2140,84 @@ test("client: every literal label is defined in both languages", () => {
     if (definitions.length < 2) missing.push(`${key}:${definitions.length}`);
   }
   assert.deepEqual(missing, [], "each label is defined in the zh and en dictionaries");
+});
+
+// --- API-key accounts (0.7.0-beta) ----------------------------------------------
+
+test("accounts: an API key is stored as a switchable account entry", async (t) => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-key-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+  const key = "fk-TESTKEYNOTAREALKEY0000000000000000000000000000000000000000000000000";
+  await withEnv(
+    { DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined },
+    async () => {
+      const saved = saveApiKeyAccount({ label: "work", key });
+      assert.equal(saved.created, true);
+      const entry = listAccounts().find((account) => account.id === saved.id);
+      assert.equal(entry.kind, "api-key");
+      assert.equal(entry.state, "ready");
+      assert.equal(entry.label, "work");
+      assert.equal(entry.keyHint, key.slice(-4));
+
+      // The list must never carry the key itself: only the last four characters.
+      assert.ok(!JSON.stringify(entry).includes(key.slice(0, 30)), "full key is not exposed");
+
+      // The key lives in a 0600 file inside the per-account directory.
+      const file = path.join(vault, saved.id, "api-key");
+      assert.equal(fs.readFileSync(file, "utf8"), key);
+      assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+
+      // Saving the same key again updates its entry instead of duplicating it.
+      const again = saveApiKeyAccount({ label: "work renamed", key });
+      assert.equal(again.created, false);
+      assert.equal(again.id, saved.id);
+      assert.equal(listAccounts().filter((a) => a.kind === "api-key").length, 1);
+
+      // A non-key string is refused.
+      assert.throws(() => saveApiKeyAccount({ label: "bad", key: "not a key" }), /does not look like/);
+      assert.throws(() => saveApiKeyAccount({ label: "bad", key: `fk-${"x".repeat(30)} y` }), /does not look like/);
+    },
+  );
+});
+
+test("accounts: selecting a key account serves that key, not the envelope", async (t) => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-key2-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+  const defaultHome = seedFactoryHome(t, credsFor("user_env", "org_env"));
+  const key = `fk-${"A".repeat(40)}Zz9q`;
+  await withEnv(
+    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: "fk-ambient" },
+    async () => {
+      const saved = saveApiKeyAccount({ label: "key account", key });
+      setActiveAccountId(saved.id);
+
+      const resolver = createTokenResolver({
+        activeHome: () => activeAccountHome(),
+        activeKey: () => activeApiKey(),
+        disabled: () => getCredentialMode() === "off",
+      });
+      const state = await resolver.resolve();
+      assert.equal(state.source, "api-key");
+      assert.equal(state.token, key, "the selected key wins over the ambient env key");
+      assert.equal(state.expiresAt, undefined, "a key never expires");
+
+      // A key account has no envelope home, which is what keeps the envelope
+      // path from being used at all.
+      assert.equal(activeAccountHome(), undefined);
+
+      // Quota for a key account resolves to the key itself.
+      const creds = await resolveAccountCredential(saved.id);
+      assert.equal(creds.access_token, key);
+
+      // Deleting the selected key account stops credential serving outright,
+      // exactly like deleting a snapshot does.
+      deleteAccount(saved.id);
+      assert.equal(getCredentialMode(), "off");
+      resolver.reset();
+      const after = await resolver.resolve();
+      assert.equal(after.source, "disabled");
+      assert.equal(after.token, undefined);
+      useDefaultCredentials();
+    },
+  );
 });
