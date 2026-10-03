@@ -1,15 +1,16 @@
 # dsh-factory-provider — writes provider routes into llm-pi-ai:
 #   factory-g (api: openai-completions) — Droid Core models (GLM/Kimi/MiniMax/
-#     DeepSeek) on Factory's generic route. Free pool (own rate limits, no
-#     standard quota).
+#     DeepSeek) on Factory's generic route. Low multipliers, but these still
+#     bill the standard pool first; the free Core pool only takes over once
+#     standard is exhausted.
 #   factory-a (api: anthropic-messages) — Claude models (verified live against
 #     the official CLI's replayed requests; draws standard quota).
 #   factory-o (api: openai-responses) — GPT models on the azure_openai path
 #     (draws standard quota; identity gate reads the `instructions` field).
 # All point at this plugin's loopback gateway on the dsh web port; the gateway
-# attaches the selected Factory API key (or FACTORY_API_KEY when no key is
-# selected) to each request. The plugin owns these provider keys; it removes
-# them again on disposal.
+# injects the Factory credential (droid CLI login or FACTORY_API_KEY) per
+# request. The plugin owns these provider keys; it removes them again on
+# disposal.
 - insert:
     - id: dsh-factory-provider
       name: dsh-factory-provider

@@ -37,17 +37,17 @@ DSH（模型选择器）
 llm-pi-ai  provider 条目（factory-g / factory-a / factory-o）
    ↓
 本插件在本机开的回环网关（127.0.0.1）
-   ↓  自动附加你的 Factory 登录凭据 + 官方 CLI 头集合
+   ↓  自动附加你选的 Factory API key + 官方 CLI 头集合
 Factory 推理服务（prem.factory.ai）
 ```
 
-于是 **Factory 的模型会直接出现在 DSH 的模型选择器里**，和内置模型一样选用；用掉的是你的 Factory 订阅额度，而不用另配 API key。
+于是 **Factory 的模型会直接出现在 DSH 的模型选择器里**，和内置模型一样选用。你只需要一个 Factory API key（[第 1 步](#第-1-步拿一个-factory-api-key)），用掉的是你的 Factory 订阅额度。
 
 **三条路由**分别对接不同的上游协议：
 
 | 路由 | 覆盖模型 | 额度池 |
 | --- | --- | --- |
-| `factory-g` | GLM / Kimi / MiniMax / DeepSeek 等 | **Core 免费池**（有自己的限额，不占标准额度） |
+| `factory-g` | GLM / Kimi / MiniMax / DeepSeek 等 | **Core 池模型**（倍率低，但**同样先扣标准额度**） |
 | `factory-a` | Claude 全系（Opus / Sonnet / Fable） | 标准订阅额度 |
 | `factory-o` | GPT / Codex 系 | 标准订阅额度 |
 
@@ -223,7 +223,15 @@ key 存在 `~/.dsh-factory-provider/accounts/<id>/api-key`（Windows 是 `%USERP
 
 **Q：会消耗我的 Factory 额度吗？**
 
-会。`factory-g` 走 **Core 免费池**（有自己的限额，不占标准额度），`factory-a` / `factory-o` 走**标准订阅额度**。设置页「订阅额度」可实时看用量。
+**三条路由都先扣标准额度**，区别只在倍率（烧得快慢）和耗尽后的去向：
+
+| 阶段 | 谁在用 |
+| --- | --- |
+| ① 标准池 | **所有模型**，包括 GLM 这类 Core 模型 —— 倍率低所以扣得慢（GLM-5.3-Flash 0.06x vs Opus 5.5 1.6x） |
+| ② Core 池 | 标准池耗尽后，Core 模型**免费**溢出到这里 |
+| ③ Extra Usage | 再往后走预付余额 |
+
+所以"Core 池模型"不等于"不占标准额度"—— 它们只是**烧得慢**。设置页「订阅额度」两个池子的进度条可以实时对照。
 
 **Q：插件会读走或上传我的凭据吗？**
 
