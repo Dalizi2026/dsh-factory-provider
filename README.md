@@ -18,7 +18,6 @@
   - [第 4 步：在 DSH 里选模型](#第-4-步在-dsh-里选模型)
   - [第 5 步：按需精简模型列表](#第-5-步按需精简模型列表)
 - [设置页说明](#设置页说明)
-- [API key 模式（测试版）](#api-key-模式测试版)
 - [多账号切换](#多账号切换)
 - [Windows / Linux 用户必读](#windows--linux-用户必读)
 - [配置项](#配置项)
@@ -68,7 +67,7 @@ droid              # 运行一次，走浏览器完成登录（用你的 Factory
 
 > macOS 上 droid 0.231+ 会把 AES 密钥放进**登录钥匙串**，插件首次读取可能弹出一次钥匙串授权——选「始终允许」。
 >
-> **不想装 droid CLI？** 可以直接用 **API key 模式**（见 [API key 模式](#api-key-模式测试版)）：在设置页粘贴一串 `fk-...` 就能用。实测它与 droid 登录态**扣同一份订阅额度**，不是另一套计费。
+> **不想用 droid CLI？** 也可以在 DSH 里设置 `FACTORY_API_KEY`（`fk-...`）。但注意那是 Factory 的**按量计费 API**，**不是**订阅额度，两者计费不同。
 
 **还需要 DSH 本身**，并确认 `dsh` 命令可用。
 
@@ -151,34 +150,6 @@ DSH 的模型列表太长会很碍事。在设置页「路由与模型」面板�
 
 ---
 
-## API key 模式（测试版）
-
-不想装 droid CLI、不想碰系统钥匙串，就用这个模式：**去 [Factory 的 API Keys 页面](https://app.factory.ai/settings/api-keys) 建一个 key，粘贴到设置页**，立即生效。
-
-```
-设置 → Factory (Droid) → 账号切换 → 粘贴 Factory API key（fk-…）→ 保存 API key
-```
-
-**为什么可以这么用**：API key 是「机器身份」凭证（官方设计用途是让 CI/CD、脚本这类没有浏览器的场景也能跑 Droid）。实测它还**可以直接作为推理凭据**——用同一个 key 请求推理主机返回 200，查额度返回的也是同一份订阅窗口（5h/周/月 百分比与 droid 登录态完全一致）。
-
-> ⚠️ 这是**官方文档未记载**的用法（官方 API 文档里 key 只用于 `api.factory.ai` 那套管理端点）。能用，但 Factory 随时可能调整，风险自负。
-
-**对比 droid CLI 登录态**：
-
-| | droid CLI 登录态 | API key |
-| --- | --- | --- |
-| 有效期 | 24 小时，自动续期 | **不过期** |
-| 读取方式 | 解密信封 + 系统钥匙串 | 直接读存下来的字符串 |
-| Windows / Linux | 依赖凭据管理器 / Secret Service（**未在真机验证**） | **不依赖任何系统组件** |
-| 安装要求 | 必须装 droid CLI 并登录 | 不需要 |
-| 一个凭据对应 | 一个账号 | 一个账号 |
-
-**关于切账号**：一个 key 属于一个 Factory 账号，所以**想切账号就为每个账号各存一个 key**——key 会作为账号条目出现在列表里，和登录快照一样选中即切换。选中的账号**优先于**环境变量 `FACTORY_API_KEY`。
-
-**安全提示**：key 存在 `~/.dsh-factory-provider/accounts/<id>/api-key`，权限 0600（目录 0700）。它是长期有效凭证，泄露等于账号被别人用——不要提交进 git，不要在截图里露出来。
-
----
-
 ## 多账号切换
 
 「账号切换」面板可以把多个 Factory 登录态存在本地，一键决定网关用哪个账号。账号库在 `~/.dsh-factory-provider/accounts/`。
@@ -218,10 +189,9 @@ DSH 的模型列表太长会很碍事。在设置页「路由与模型」面板�
 
 **如果设置页显示「未检测到登录态」但你确实登录了**，说明密钥没读到。面板会直接列出**每一项尝试的结果**（如 `windows-credential-manager:absent`）并给出针对你系统的补救方法。三条出路：
 
-1. **改用 [API key 模式](#api-key-模式测试版)**（推荐，最省事：不依赖任何系统组件）
-2. **设置 `FACTORY_AUTH_KEY`** 为 base64 密钥
-3. **用 `FACTORY_DISABLE_KEYRING=1` 重新登录一次 droid** —— 这会让 droid 把密钥改存到 `auth.v2.key` 文件，插件直接读文件
-4. **用 `FACTORY_AUTH_KEY_COMMAND`** 接上你自己的取密钥方式
+1. **设置 `FACTORY_AUTH_KEY`** 为 base64 密钥
+2. **用 `FACTORY_DISABLE_KEYRING=1` 重新登录一次 droid** —— 这会让 droid 把密钥改存到 `auth.v2.key` 文件，插件直接读文件
+3. **用 `FACTORY_AUTH_KEY_COMMAND`** 接上你自己的取密钥方式
 
 > **诚实说明**：Windows 凭据管理器与 Linux Secret Service 的读取路径**尚未在真机验证过**（开发机是 macOS）。如果你在 Windows/Linux 上跑通了或遇到问题，欢迎提 issue 告诉我结果——设置页「连接状态」里的**信封密钥来源**字段会显示实际命中的来源，把这个值发出来就够定位了。
 
@@ -238,7 +208,7 @@ DSH 的模型列表太长会很碍事。在设置页「路由与模型」面板�
 | `cliVersion` | `"0.231.0"` | 网关呈现给 Factory 的 CLI 版本（UA），跟随你装的 droid 版本 |
 | `apiBaseURL` | `"https://prem.factory.ai"` | 推理主机（账号的 `whoami.premBaseHostV2` 会覆盖它，EU 账号不同） |
 | `quotaHost` | `"https://api.factory.ai"` | 额度端点主机 |
-| `keyEnv` | `"FACTORY_API_KEY"` | 长效 API key 的环境变量名，同时读 DSH 凭据存储。实测与 droid 登录态**扣同一份订阅额度**（官方文档未记载此用法） |
+| `keyEnv` | `"FACTORY_API_KEY"` | 长效 API key 的环境变量名。**按量计费，不是订阅额度** |
 | `refreshWindowMinutes` | `15` | access token 到期前多久主动刷新 |
 | `proactiveRefreshMinutes` | `5` | 定时刷新周期；`0` 关闭定时器 |
 | `modelAllowlist` | `[]` | 模型显示范围：`[]` = 全部；非空则只显示列出的模型（建议在设置页勾选，不要手填） |
@@ -292,7 +262,7 @@ DSH 的模型列表太长会很碍事。在设置页「路由与模型」面板�
 ## 开发
 
 ```sh
-node test/run.mjs     # 77 项离线测试，不需要网络、不需要 droid CLI
+node test/run.mjs     # 75 项离线测试，不需要网络、不需要 droid CLI
 ```
 
 测试覆盖：凭据加解密与 WorkOS 刷新闭环、账号库、**三平台矩阵**（Windows/Linux 的路径、登录命令、钥匙环读取）、请求净化规则、模型目录、网关端到端（本地 mock 上游，含 SSE 流式与 401 重试）。
