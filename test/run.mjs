@@ -15,7 +15,6 @@
 // whatever host the developer had running.
 process.env.DSH_FACTORY_JOURNAL = path.join(os.tmpdir(), `dsh-factory-test-journal-${process.pid}.jsonl`);
 
-import { createHash } from "node:crypto";
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -51,7 +50,6 @@ import {
   buildProviderEntry,
 } from "../lib/catalog.js";
 import { createGateway } from "../lib/gateway.js";
-import { applyAnthropicCacheBreakpoints, fingerprintAnthropicPayload } from "../lib/cache.js";
 import { apply, Config } from "../lib/index.js";
 import { journal, readJournal } from "../lib/journal.js";
 import { fetchQuota } from "../lib/quota.js";
@@ -742,18 +740,10 @@ test("gateway: anthropic route injects credential/headers, rewrites body, stream
     // skills beta dropped (no code_execution tool), fast-mode beta added, speed set
     assert.equal(sent.headers["anthropic-beta"], "fast-mode-2026-02-01");
     assert.equal(sent.body.speed, "fast");
-    // Top-level system passes through with the canonical line first. It is now
-    // a block array because the cache layer needs somewhere legal to put a
-    // breakpoint; the text itself is unchanged.
-    const systemText = Array.isArray(sent.body.system)
-      ? sent.body.system.map((b) => b.text).join("")
-      : sent.body.system;
-    assert.equal(systemText, `${DROID_SYSTEM_LINE}\n\nSYSTEM`);
+    // top-level system passes through with the canonical line first
+    assert.equal(sent.body.system, `${DROID_SYSTEM_LINE}\n\nSYSTEM`);
     assert.equal(sent.body.messages.length, 1);
-    const firstText = Array.isArray(sent.body.messages[0].content)
-      ? sent.body.messages[0].content.map((b) => b.text ?? "").join("")
-      : sent.body.messages[0].content;
-    assert.equal(firstText, "hello");
+    assert.equal(sent.body.messages[0].content, "hello");
   });
 });
 
@@ -834,23 +824,14 @@ test("gateway: journal records the forwarded request shape and upstream status",
     await readAll(res);
   });
   const entries = readJournal(10);
-  // The forward record is no longer last: a usage record follows once the
-  // stream ends. Find it by event rather than by position.
-  const entry = entries.filter((e) => e.event === "forward").at(-1);
+  const entry = entries[entries.length - 1];
   assert.equal(entry.route, "generic");
+  assert.equal(entry.event, "forward");
   assert.equal(entry.upstreamStatus, 200);
   assert.equal(entry.shape.model, "glm-5.3-flash");
   assert.equal(entry.shape.tools, 1);
-  assert.equal(typeof entry.requestId, "string", "records carry a request id");
   // No tokens or full bodies in the journal.
   assert.ok(!JSON.stringify(entry).includes("Bearer"));
-
-  // The usage record shares that id and carries the accounting.
-  const usage = entries.filter((e) => e.event === "usage").at(-1);
-  assert.equal(usage.requestId, entry.requestId, "usage belongs to the same request");
-  assert.ok(usage.totalInput === null || typeof usage.totalInput === "number");
-  assert.ok(usage.hitRatio === null || (usage.hitRatio >= 0 && usage.hitRatio <= 1));
-  assert.ok(!JSON.stringify(usage).includes("Bearer"));
 });
 
 test("gateway: status and models routes report state and the catalog", async (t) => {
@@ -2074,312 +2055,4 @@ test("settings: a service that is still starting up is retried, not reported as 
   const parsed = JSON.parse(status.body);
   assert.equal(parsed.plugin.reconcile, "applied", "the retry succeeded");
   assert.equal(parsed.plugin.error, undefined, "no failure is reported");
-});
-
-// --- anthropic prompt-cache breakpoints ------------------------------------------
-
-const EPHEMERAL = { type: "ephemeral" };
-const EPHEMERAL_1H = { type: "ephemeral", ttl: "1h" };
-const textBlock = (text, extra = {}) => ({ type: "text", text, ...extra });
-
-function markerCount(parsed) {
-  let count = 0;
-  if (parsed.cache_control !== undefined) count += 1;
-  for (const tool of parsed.tools ?? []) if (tool?.cache_control !== undefined) count += 1;
-  for (const block of Array.isArray(parsed.system) ? parsed.system : []) {
-    if (block?.cache_control !== undefined) count += 1;
-  }
-  for (const message of parsed.messages ?? []) {
-    for (const block of Array.isArray(message?.content) ? message.content : []) {
-      if (block?.cache_control !== undefined) count += 1;
-    }
-  }
-  return count;
-}
-
-test("cache: auto places breakpoints on tools, system and the newest message", () => {
-  const parsed = {
-    tools: [{ name: "read" }, { name: "write" }],
-    system: [textBlock("SYS")],
-    messages: [{ role: "user", content: [textBlock("hi")] }],
-  };
-  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "auto", ttl: "5m" });
-  assert.equal(report.source, "proxy");
-  assert.equal(report.breakpoints, 3);
-  assert.deepEqual(parsed.tools[1].cache_control, EPHEMERAL);
-  assert.deepEqual(parsed.system[0].cache_control, EPHEMERAL);
-  assert.deepEqual(parsed.messages[0].content[0].cache_control, EPHEMERAL);
-  assert.ok(markerCount(parsed) <= 4, "within the 4-block limit");
-});
-
-test("cache: auto leaves a client that already manages caching alone", () => {
-  const parsed = {
-    system: [textBlock("SYS", { cache_control: EPHEMERAL })],
-    messages: [{ role: "user", content: [textBlock("hi", { cache_control: EPHEMERAL })] }],
-  };
-  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "auto" });
-  assert.equal(report.source, "client");
-  assert.equal(report.breakpoints, 2);
-  assert.equal(markerCount(parsed), 2, "nothing was added");
-});
-
-test("cache: passthrough changes nothing at all", () => {
-  const parsed = {
-    system: [textBlock("SYS")],
-    messages: [{ role: "user", content: [textBlock("hi")] }],
-  };
-  const before = JSON.stringify(parsed);
-  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "passthrough" });
-  assert.equal(JSON.stringify(parsed), before);
-  assert.equal(report.breakpoints, 0);
-  assert.equal(report.source, "none");
-});
-
-test("cache: rewrite replaces client placement instead of adding to it", () => {
-  const parsed = {
-    system: [textBlock("SYS", { cache_control: EPHEMERAL })],
-    messages: [
-      { role: "user", content: [textBlock("old", { cache_control: EPHEMERAL })] },
-      { role: "user", content: [textBlock("new")] },
-    ],
-  };
-  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
-  assert.equal(report.source, "proxy");
-  assert.ok(markerCount(parsed) <= 4);
-  assert.equal(parsed.messages[0].content[0].cache_control, undefined, "the stale marker is gone");
-  assert.deepEqual(parsed.messages[1].content[0].cache_control, EPHEMERAL, "the newest message is marked");
-});
-
-test("cache: a field named cache_control inside tool input is never touched", () => {
-  // The trap: tool inputs, JSON schemas and user data may legitimately contain
-  // a property with this name. Only the known outer surfaces may be edited.
-  const parsed = {
-    tools: [
-      {
-        name: "configure",
-        input_schema: { type: "object", properties: { cache_control: { type: "string" } } },
-      },
-    ],
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "tool_result", tool_use_id: "toolu_1", content: [{ type: "text", text: "ok" }] },
-          { type: "text", text: "data", cache_control: EPHEMERAL },
-        ],
-      },
-    ],
-  };
-  applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
-  assert.deepEqual(
-    parsed.tools[0].input_schema.properties.cache_control,
-    { type: "string" },
-    "the schema property survives",
-  );
-  assert.equal(parsed.messages[0].content[0].tool_use_id, "toolu_1");
-});
-
-test("cache: running twice produces the same request", () => {
-  const build = () => ({
-    tools: [{ name: "read" }],
-    system: [textBlock("SYS")],
-    messages: [{ role: "user", content: [textBlock("hi")] }],
-  });
-  const once = build();
-  applyAnthropicCacheBreakpoints(once, { mode: "rewrite" });
-  const twice = build();
-  applyAnthropicCacheBreakpoints(twice, { mode: "rewrite" });
-  applyAnthropicCacheBreakpoints(twice, { mode: "rewrite" });
-  assert.equal(JSON.stringify(twice), JSON.stringify(once), "idempotent");
-  assert.ok(markerCount(twice) <= 4);
-});
-
-test("cache: string system and string message content are upgraded without loss", () => {
-  const parsed = { system: "SYS", messages: [{ role: "user", content: "hello" }] };
-  applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
-  assert.equal(parsed.system[0].text, "SYS");
-  assert.equal(parsed.messages[0].content[0].text, "hello");
-  assert.deepEqual(parsed.messages[0].content[0].cache_control, EPHEMERAL);
-});
-
-test("cache: the session key is identical before and after the rewrite", () => {
-  // Upgrading a string to a block array must not change the derived session id,
-  // or cache affinity would break in a way no marker can repair.
-  const before = { model: "m", system: "SYS", messages: [{ role: "user", content: "hello" }] };
-  const after = JSON.parse(JSON.stringify(before));
-  applyAnthropicCacheBreakpoints(after, { mode: "rewrite" });
-  assert.deepEqual(
-    sessionKeyParts("anthropic", after),
-    sessionKeyParts("anthropic", before),
-    "sessionKeyParts is unchanged",
-  );
-});
-
-test("cache: an existing ttl is not overwritten", () => {
-  const parsed = {
-    messages: [{ role: "user", content: [textBlock("hi", { cache_control: EPHEMERAL_1H })] }],
-  };
-  applyAnthropicCacheBreakpoints(parsed, { mode: "auto", ttl: "5m" });
-  assert.deepEqual(parsed.messages[0].content[0].cache_control, EPHEMERAL_1H, "client ttl wins");
-});
-
-test("cache: the 1h ttl is applied when asked for", () => {
-  const parsed = { system: [textBlock("SYS")], messages: [{ role: "user", content: [textBlock("hi")] }] };
-  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite", ttl: "1h" });
-  assert.deepEqual(parsed.system[0].cache_control, EPHEMERAL_1H);
-  assert.deepEqual(report.ttlSummary, { "1h": 2 });
-});
-
-test("cache: thinking, empty text and unknown blocks never carry a marker", () => {
-  const parsed = {
-    messages: [
-      {
-        role: "assistant",
-        content: [
-          { type: "thinking", thinking: "…" },
-          { type: "redacted_thinking", data: "…" },
-          textBlock(""),
-          { type: "image", source: {} },
-        ],
-      },
-      { role: "user", content: [textBlock("real")] },
-    ],
-  };
-  applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
-  assert.equal(parsed.messages[0].content[0].cache_control, undefined);
-  assert.equal(parsed.messages[0].content[1].cache_control, undefined);
-  assert.equal(parsed.messages[0].content[2].cache_control, undefined);
-  assert.deepEqual(parsed.messages[1].content[0].cache_control, EPHEMERAL);
-});
-
-test("cache: empty and missing shapes are handled without throwing", () => {
-  for (const parsed of [{}, { messages: [] }, { system: [] }, { messages: [{ role: "user", content: [] }] }]) {
-    const report = applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
-    assert.ok(markerCount(parsed) <= 4);
-    assert.equal(typeof report.breakpoints, "number");
-  }
-  assert.doesNotThrow(() => applyAnthropicCacheBreakpoints(undefined, { mode: "auto" }));
-  const unknown = { messages: [{ role: "user", content: [textBlock("hi")] }] };
-  const before = JSON.stringify(unknown);
-  const report = applyAnthropicCacheBreakpoints(unknown, { mode: "nonsense" });
-  assert.equal(JSON.stringify(unknown), before, "an unknown mode changes nothing");
-  assert.equal(report.warnings.length, 1);
-});
-
-test("cache: the fingerprint separates serialization order from content", () => {
-  const hash = (value) => createHash("sha256").update(value).digest("hex");
-  const fp = (payload) => fingerprintAnthropicPayload(payload, hash);
-  const base = { system: [textBlock("SYS")], messages: [{ role: "user", content: [textBlock("a")] }] };
-
-  const same = JSON.parse(JSON.stringify(base));
-  assert.deepEqual(fp(same), fp(base), "identical input, identical fingerprint");
-
-  const grown = JSON.parse(JSON.stringify(base));
-  grown.messages.push({ role: "assistant", content: [textBlock("b")] });
-  assert.deepEqual(fp(grown).messages.raw.slice(0, 1), fp(base).messages.raw, "appending keeps the earlier prefix");
-
-  const changed = JSON.parse(JSON.stringify(base));
-  changed.messages[0].content[0].text = "A";
-  assert.notEqual(fp(changed).messages.raw[0], fp(base).messages.raw[0], "changed text shows up at its index");
-
-  // Key order only: raw moves, structural does not.
-  const reordered = { messages: [{ content: [textBlock("a")], role: "user" }], system: [textBlock("SYS")] };
-  const a = fp(base);
-  const b = fp(reordered);
-  assert.notEqual(a.messages.raw[0], b.messages.raw[0], "raw sees the reordering");
-  assert.equal(a.messages.structural[0], b.messages.structural[0], "structural does not");
-
-  // A marker moving is metadata, not content.
-  const marked = JSON.parse(JSON.stringify(base));
-  marked.messages[0].content[0].cache_control = EPHEMERAL;
-  assert.deepEqual(fp(marked), fp(base), "moving a marker changes nothing");
-
-  // A business field that happens to be called cache_control IS content.
-  const business = { messages: [{ role: "assistant", content: [{ type: "tool_use", id: "t1", name: "x", input: { cache_control: "old" } }] }] };
-  const businessChanged = JSON.parse(JSON.stringify(business));
-  businessChanged.messages[0].content[0].input.cache_control = "new";
-  assert.notEqual(
-    fp(business).messages.raw[0],
-    fp(businessChanged).messages.raw[0],
-    "a tool input field of that name is content, not a marker",
-  );
-
-  const schema = { tools: [{ name: "x", input_schema: { properties: { cache_control: { type: "string" } } } }], messages: [] };
-  const schemaChanged = JSON.parse(JSON.stringify(schema));
-  schemaChanged.tools[0].input_schema.properties.cache_control.type = "number";
-  assert.notEqual(fp(schema).tools.raw, fp(schemaChanged).tools.raw, "and neither is a schema property");
-
-  // The snapshot must not touch the caller payload.
-  const before = JSON.stringify(base);
-  fp(base);
-  assert.equal(JSON.stringify(base), before, "fingerprinting does not mutate its input");
-});
-
-
-test("cache: only the anthropic route gains markers", async (t) => {
-  const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, [{ choices: [{ delta: { content: "ok" } }] }]));
-  const gateway = await startGateway(t, {
-    upstreamBaseURL: upstream.baseURL,
-    enabledRoutes: ["generic", "anthropic"],
-  });
-  await withEnv({ FACTORY_API_KEY: `fk-cache-${"n".repeat(40)}` }, async () => {
-    await readAll(
-      await fetch(`${gateway.baseURL}/api/dsh-factory-provider/o/v1/chat/completions`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ model: "glm-5.3-flash", messages: [{ role: "user", content: "hi" }] }),
-      }),
-    );
-    const sent = upstream.seen.at(-1);
-    assert.equal(markerCount(sent.body), 0, "the generic route is untouched");
-  });
-});
-
-test("gateway: usage is collected from a streamed reply without buffering it", async (t) => {
-  // Anthropic reports usage across message_start and message_delta, and a chunk
-  // boundary can fall inside an event. The observer must merge fields (not sum
-  // cumulative repeats) and still pass every byte through unchanged.
-  const events = [
-    `event: message_start\ndata: ${JSON.stringify({ type: "message_start", message: { usage: { input_tokens: 12, cache_read_input_tokens: 5000, cache_creation_input_tokens: 300 } } })}\n\n`,
-    `event: content_block_delta\ndata: ${JSON.stringify({ type: "content_block_delta", delta: { text: "hi" } })}\n\n`,
-    `event: message_delta\ndata: ${JSON.stringify({ type: "message_delta", usage: { output_tokens: 7, input_tokens: 12, cache_read_input_tokens: 5000, cache_creation_input_tokens: 300 } })}\n\n`,
-  ];
-  const upstream = await startMockUpstream(t, (_record, res) => {
-    res.writeHead(200, { "content-type": "text/event-stream" });
-    // Deliberately split one event across two writes.
-    const whole = events.join("");
-    const cut = Math.floor(whole.length / 2);
-    res.write(whole.slice(0, cut));
-    setTimeout(() => {
-      res.write(whole.slice(cut));
-      res.end();
-    }, 5);
-  });
-  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, enabledRoutes: ["anthropic"] });
-  await withEnv({ FACTORY_API_KEY: `fk-usage-${"p".repeat(40)}` }, async () => {
-    const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/a/v1/messages`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 16,
-        stream: true,
-        messages: [{ role: "user", content: "hi" }],
-      }),
-    });
-    const body = await readAll(res);
-    assert.equal(res.status, 200);
-    assert.match(body.toString(), /message_start/, "the stream still reaches the client");
-    assert.match(body.toString(), /content_block_delta/);
-
-    // Give the observer's flush a tick to land.
-    await new Promise((r) => setTimeout(r, 50));
-    const usage = readJournal(20).filter((e) => e.event === "usage").at(-1);
-    assert.equal(usage.input, 12, "input is not double counted");
-    assert.equal(usage.read, 5000);
-    assert.equal(usage.write, 300);
-    assert.equal(usage.output, 7);
-    assert.equal(usage.totalInput, 12 + 5000 + 300);
-    assert.ok(Math.abs(usage.hitRatio - 5000 / 5312) < 0.001, "hit ratio is read / total input");
-  });
 });

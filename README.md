@@ -252,8 +252,6 @@ key 存在 `~/.dsh-factory-provider/accounts/<id>/api-key`（Windows 是 `%USERP
 | `apiBaseURL` | `"https://prem.factory.ai"` | 推理主机。EU 等区域账号若不同，在这里改 |
 | `quotaHost` | `"https://api.factory.ai"` | 额度端点主机 |
 | `keyEnv` | `"FACTORY_API_KEY"` | 未选择任何 key 时，从这个环境变量（以及 DSH 凭据存储）取 key |
-| `anthropicCacheMode` | `auto` | Anthropic 缓存断点：`auto`（客户端自带标记时不插手）/ `rewrite`（插件统一接管）/ `passthrough`（完全不改，诊断用） |
-| `anthropicCacheTTL` | `5m` | 插件自己创建的断点用多长 TTL。`1h` 是实验选项，上游不支持时会报错，改回 `5m` |
 | `proactiveRefreshMinutes` | `5` | provider 写入未落地时的重试周期；`0` 关闭定时器（API key 不过期，无需刷新凭据） |
 | `modelAllowlist` | `[]` | 模型显示范围：`[]` = 全部；非空则只显示列出的模型（建议在设置页勾选，不要手填） |
 
