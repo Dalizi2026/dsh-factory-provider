@@ -7,9 +7,9 @@
 #   factory-o (api: openai-responses) — GPT models on the azure_openai path
 #     (draws standard quota; identity gate reads the `instructions` field).
 # All point at this plugin's loopback gateway on the dsh web port; the gateway
-# injects the Factory credential (droid CLI login or FACTORY_API_KEY) per
-# request. The plugin owns these provider keys; it removes them again on
-# disposal.
+# attaches the selected Factory API key (or FACTORY_API_KEY when no key is
+# selected) to each request. The plugin owns these provider keys; it removes
+# them again on disposal.
 - insert:
     - id: dsh-factory-provider
       name: dsh-factory-provider

@@ -2,11 +2,18 @@
 //
 //   node test/run.mjs
 //
-// Covers the credential envelope (decrypt / WorkOS refresh / atomic rewrite /
-// single-flight / API-key bypass), the per-route payload rewrites, the catalog
-// → llm-pi-ai entry mapping, and the gateway end to end against local mock
-// Factory + WorkOS servers (header injection, SSE streaming, 401 refresh-retry,
-// loopback guard, catalog/status routes). No network, no droid CLI needed.
+// The plugin authenticates with a Factory API key and nothing else, so the
+// credential side is small: a key is stored per account, the resolver picks the
+// selected one (falling back to FACTORY_API_KEY while none is selected), and a
+// deleted key stops serving. The rest covers the per-route payload rewrites,
+// the catalog → llm-pi-ai entry mapping, and the gateway end to end against a
+// local mock Factory (header injection, SSE streaming, 401 retry, loopback
+// guard, status/catalog routes). No network access, no API key, no droid CLI.
+
+// Point the journal at a temp file before anything can write to it: this suite
+// deliberately breaks handlers, and those records used to land in the journal of
+// whatever host the developer had running.
+process.env.DSH_FACTORY_JOURNAL = path.join(os.tmpdir(), `dsh-factory-test-journal-${process.pid}.jsonl`);
 
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
@@ -16,39 +23,18 @@ import path from "node:path";
 import http from "node:http";
 import crypto from "node:crypto";
 
+import { createTokenResolver } from "../lib/credentials.js";
 import {
-  authKeySource,
-  decryptCredential,
-  envelopeFile,
-  normalizeKey,
-  writeCredential,
-  readAuthKey,
-  resolveAuthKey,
-  tokenExpiryMs,
-  refreshCredential,
-  createTokenResolver,
-  resolveCredentialForHome,
-} from "../lib/credentials.js";
-import {
-  authKeyCommands,
-  droidCandidates,
-  ENVELOPE_NAMES,
-  findDroidExecutable,
-  loginCommand,
-} from "../lib/platform.js";
-import {
+  accountApiKey,
   accountsRoot,
-  activeAccountHome,
-  createPendingAccount,
+  activeApiKey,
+  clearActiveAccount,
   deleteAccount,
+  disableCredentials,
   getActiveAccountId,
   getCredentialMode,
-  disableCredentials,
-  useDefaultCredentials,
   listAccounts,
-  resolveAccountCredential,
-  saveAccount,
-  saveCurrentAccount,
+  saveApiKeyAccount,
   setActiveAccountId,
 } from "../lib/accounts.js";
 import {
@@ -103,25 +89,13 @@ function encryptEnvelope(key, plaintext) {
   return [iv, cipher.getAuthTag(), ct].map((b) => b.toString("base64")).join(":");
 }
 
-/** A .factory home directory holding `creds` under the droid envelope. */
-function seedFactoryHome(t, creds) {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-home-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  const key = crypto.randomBytes(32);
-  fs.writeFileSync(path.join(home, "auth.v2.key"), key.toString("base64"));
-  fs.writeFileSync(path.join(home, "auth.v2.file"), encryptEnvelope(key, creds));
-  return home;
+/** The credential a gateway test runs with. It used to be a droid envelope in
+ *  a temp home; with API keys the credential *is* the key, so the same call
+ *  returns the string the resolver reads from FACTORY_API_KEY. */
+function seedFactoryHome(_t, creds) {
+  return creds.access_token;
 }
 
-/** A droid >= 0.231 layout home: envelope at auth.v2.loginkeychain, key
- * supplied out-of-band (keychain in production; FACTORY_AUTH_KEY here). */
-function seedKeychainHome(t, creds) {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-home-kc-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  const key = crypto.randomBytes(32);
-  fs.writeFileSync(path.join(home, "auth.v2.loginkeychain"), encryptEnvelope(key, creds));
-  return { home, keyBase64: key.toString("base64") };
-}
 
 function withEnv(overrides, fn) {
   const saved = new Map();
@@ -154,176 +128,8 @@ function sseReply(res, chunks) {
 
 // --- credentials --------------------------------------------------------------
 
-test("envelope roundtrip: write then decrypt returns the same credential", (t) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-home-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  fs.writeFileSync(path.join(home, "auth.v2.key"), crypto.randomBytes(32).toString("base64"));
-  const creds = {
-    access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 }),
-    refresh_token: "refresh-1",
-    active_organization_id: "org_123",
-  };
-  writeCredential(creds, home);
-  assert.deepEqual(decryptCredential(home), creds);
-});
-
-test("decryptCredential returns undefined for a missing/foreign home", (t) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-home-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  assert.equal(decryptCredential(home), undefined);
-  fs.writeFileSync(path.join(home, "auth.v2.key"), crypto.randomBytes(32).toString("base64"));
-  fs.writeFileSync(path.join(home, "auth.v2.file"), "not-an-envelope");
-  assert.equal(decryptCredential(home), undefined);
-});
-
-test("tokenExpiryMs reads the JWT exp claim; non-JWT yields undefined", () => {
-  assert.equal(tokenExpiryMs(makeJwt({ exp: 1_800_000_000 })), 1_800_000_000_000);
-  assert.equal(tokenExpiryMs("fk-not-a-jwt"), undefined);
-});
-
-test("keychain layout (droid >= 0.231): loginkeychain envelope decrypts, write-back keeps the same file", async (t) => {
-  const creds = {
-    access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 }),
-    refresh_token: "refresh-old",
-    active_organization_id: "org_5",
-    whoami: { email: "pro@example.com" },
-  };
-  const { home, keyBase64 } = seedKeychainHome(t, creds);
-  await withEnv({ FACTORY_HOME: home, FACTORY_AUTH_KEY: keyBase64 }, async () => {
-    assert.equal(readAuthKey(home).toString("base64"), keyBase64);
-    const read = decryptCredential(home);
-    assert.equal(read.access_token, creds.access_token);
-    assert.deepEqual(read.whoami, { email: "pro@example.com" });
-    // A write-back must land on the file droid itself reads, not the legacy one.
-    writeCredential({ ...creds, access_token: makeJwt({ exp: 9 }) }, home);
-    assert.equal(fs.existsSync(path.join(home, "auth.v2.file")), false);
-    assert.equal(fs.existsSync(path.join(home, "auth.v2.loginkeychain")), true);
-    assert.notEqual(decryptCredential(home).access_token, creds.access_token);
-  });
-});
-
-test("keychain layout: refresh rotates the pair, preserves unknown fields, rewrites the envelope", async (t) => {
-  const creds = {
-    access_token: makeJwt({ exp: 1 }),
-    refresh_token: "refresh-old",
-    active_organization_id: "org_5",
-    whoami: { email: "pro@example.com", plan: "pro" },
-  };
-  const { home, keyBase64 } = seedKeychainHome(t, creds);
-  const fetchImpl = async () => ({
-    ok: true,
-    json: async () => ({
-      access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 }),
-      refresh_token: "refresh-new",
-    }),
-  });
-  await withEnv(
-    { FACTORY_HOME: home, FACTORY_AUTH_KEY: keyBase64, FACTORY_WORKOS_BASE_URL: "http://workos.test" },
-    async () => {
-      const rotated = await refreshCredential(decryptCredential(home), { fetchImpl, home });
-      assert.equal(rotated.refresh_token, "refresh-new");
-      assert.deepEqual(rotated.whoami, { email: "pro@example.com", plan: "pro" });
-      // droid keeps working: the on-disk envelope now holds the rotated pair.
-      const onDisk = decryptCredential(home);
-      assert.equal(onDisk.refresh_token, "refresh-new");
-      assert.equal(onDisk.active_organization_id, "org_5");
-    },
-  );
-});
-
-test("real macOS keychain item (skip when absent): ambient ~/.factory decrypts", (t) => {
-  const home = process.env.FACTORY_HOME ?? path.join(os.homedir(), ".factory");
-  const envelope = path.join(home, "auth.v2.loginkeychain");
-  if (process.platform !== "darwin" || !fs.existsSync(envelope)) {
-    t.skip("no keychain-based login on this machine");
-    return;
-  }
-  if (process.env.FACTORY_AUTH_KEY || fs.existsSync(path.join(home, "auth.v2.key"))) {
-    t.skip("operator override / legacy layout present");
-    return;
-  }
-  const creds = decryptCredential(home);
-  assert.ok(creds !== undefined, "ambient droid credential should decrypt");
-  assert.ok(creds.access_token.length > 0);
-});
-
-test("refreshCredential posts the form grant and rewrites the envelope", async (t) => {
-  const home = seedFactoryHome(t, {
-    access_token: makeJwt({ exp: 1 }),
-    refresh_token: "refresh-old",
-    active_organization_id: "org_123",
-  });
-  const calls = [];
-  const fetchImpl = async (url, init) => {
-    calls.push({ url, body: Object.fromEntries(new URLSearchParams(init.body)) });
-    return {
-      ok: true,
-      json: async () => ({
-        access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 }),
-        refresh_token: "refresh-new",
-        active_organization_id: "org_123",
-      }),
-    };
-  };
-  const rotated = await refreshCredential(decryptCredential(home), { fetchImpl, home });
-  assert.equal(rotated.refresh_token, "refresh-new");
-  assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /\/user_management\/authenticate$/);
-  assert.equal(calls[0].body.grant_type, "refresh_token");
-  assert.equal(calls[0].body.refresh_token, "refresh-old");
-  assert.equal(calls[0].body.client_id, "client_01HNM792M5G5G1A2THWPXKFMXB");
-  assert.ok(!("organization_id" in calls[0].body));
-  // The droid CLI must keep working: the envelope on disk holds the rotated pair.
-  assert.equal(decryptCredential(home).refresh_token, "refresh-new");
-});
-
-test("resolve: API-key env bypasses the envelope entirely", async (t) => {
-  const home = seedFactoryHome(t, {
-    access_token: makeJwt({ exp: 1 }),
-    refresh_token: "r",
-    active_organization_id: null,
-  });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: "fk-live-key", FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
-    const resolver = createTokenResolver({});
-    const state = await resolver.resolve();
-    assert.equal(state.source, "api-key");
-    assert.equal(state.token, "fk-live-key");
-  });
-});
-
-test("resolve: expired envelope token triggers one refresh, shared by concurrent callers", async (t) => {
-  const home = seedFactoryHome(t, {
-    access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) - 10 }),
-    refresh_token: "refresh-old",
-    active_organization_id: "org_9",
-  });
-  let workosCalls = 0;
-  const fetchImpl = async () => {
-    workosCalls += 1;
-    await new Promise((r) => setTimeout(r, 30));
-    return {
-      ok: true,
-      json: async () => ({
-        access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 }),
-        refresh_token: "refresh-new",
-      }),
-    };
-  };
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://workos.test" }, async () => {
-    const resolver = createTokenResolver({ fetchImpl });
-    const [a, b] = await Promise.all([resolver.resolve(), resolver.resolve()]);
-    assert.equal(workosCalls, 1); // single-flight
-    assert.equal(a.token, b.token);
-    assert.equal(a.source, "droid-cli");
-    assert.equal(a.orgId, "org_9");
-    assert.equal(resolver.state().source, "droid-cli");
-  });
-});
-
-test("resolve: no credential anywhere reports source none", async (t) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-home-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined }, async () => {
+test("resolve: no credential anywhere reports source none", async () => {
+  await withEnv({ FACTORY_API_KEY: undefined }, async () => {
     const resolver = createTokenResolver({});
     const state = await resolver.resolve();
     assert.equal(state.source, "none");
@@ -687,7 +493,7 @@ test("gateway: forwards of one conversation carry a stable x-session-id", async 
   });
   const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, [{ choices: [{ delta: { content: "ok" } }] }]));
   const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const body = (firstUser) => JSON.stringify({
       model: "glm-5.3-flash",
       stream: true,
@@ -742,7 +548,7 @@ test("quota: normalizes the billing windows and account facts", async (t) => {
       },
     }),
   });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const result = await fetchQuota({ resolver: createTokenResolver({}), fetchImpl });
     assert.equal(result.ok, true);
     assert.equal(result.value.tokenRateLimits, true);
@@ -756,10 +562,8 @@ test("quota: normalizes the billing windows and account facts", async (t) => {
   });
 });
 
-test("quota: without a credential it reports no-credential instead of throwing", async (t) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-home-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined }, async () => {
+test("quota: without a credential it reports no-credential instead of throwing", async () => {
+  await withEnv({ FACTORY_API_KEY: undefined }, async () => {
     const result = await fetchQuota({ resolver: createTokenResolver({}), fetchImpl: async () => ({ ok: true, json: async () => ({}) }) });
     assert.equal(result.ok, false);
     assert.equal(result.code, "no-credential");
@@ -772,7 +576,7 @@ test("quota: a network failure surfaces as a reason, not an exception", async (t
     refresh_token: "r",
     active_organization_id: "org_1",
   });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const result = await fetchQuota({
       resolver: createTokenResolver({}),
       fetchImpl: async () => {
@@ -807,7 +611,7 @@ test("gateway: probe drives the real forward path against a mock upstream", asyn
   });
   const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, [{ choices: [{ delta: { content: "PONG" } }] }]));
   const { gateway } = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const result = await gateway.probe("generic", "glm-5.3-flash");
     assert.equal(result.ok, true);
     assert.equal(result.status, 200);
@@ -830,7 +634,7 @@ test("gateway: a failed upstream fetch is journaled and answered, not swallowed"
   });
   const { gateway } = await startGateway(t, { upstreamBaseURL: "http://127.0.0.1:1" });
   const before = readJournal(100000).length;
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const result = await gateway.probe("generic", "glm-5.3-flash");
     assert.equal(result.status, 502);
     assert.match(result.body, /failed before reaching Factory/);
@@ -901,18 +705,13 @@ async function startGateway(t, { upstreamBaseURL, enabledRoutes, cliVersion = "0
 }
 
 test("gateway: anthropic route injects credential/headers, rewrites body, streams SSE back", async (t) => {
-  const accessToken = makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 });
-  const home = seedFactoryHome(t, {
-    access_token: accessToken,
-    refresh_token: "r",
-    active_organization_id: "org_42",
-  });
+  const home = seedFactoryHome(t, { access_token: "fk-test-credential-for-anthropic-route" });
   const upstream = await startMockUpstream(t, (_record, res) => {
     sseReply(res, [{ type: "message_start" }, { type: "content_block_delta", delta: { text: "hi" } }]);
   });
   const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
 
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/a/v1/messages`, {
       method: "POST",
       headers: { "content-type": "application/json", "anthropic-beta": "skills-2025-01" },
@@ -932,12 +731,11 @@ test("gateway: anthropic route injects credential/headers, rewrites body, stream
     assert.match(body.toString(), /\[DONE\]/);
 
     const sent = upstream.seen[0];
-    assert.equal(sent.headers.authorization, `Bearer ${accessToken}`);
+    assert.equal(sent.headers.authorization, `Bearer ${home}`);
     assert.equal(sent.headers["x-api-provider"], "bedrock_anthropic");
     assert.equal(sent.headers["x-api-key"], "placeholder");
     assert.equal(sent.headers["x-stainless-package-version"], "0.70.1");
     assert.equal(sent.headers["user-agent"], "factory-cli/0.231.0");
-    assert.equal(sent.headers["x-factory-org-id"], "org_42");
     assert.equal(sent.headers["anthropic-version"], "2023-06-01");
     // skills beta dropped (no code_execution tool), fast-mode beta added, speed set
     assert.equal(sent.headers["anthropic-beta"], "fast-mode-2026-02-01");
@@ -959,7 +757,7 @@ test("gateway: generic route maps x-api-provider and keeps the canonical system 
     sseReply(res, [{ choices: [{ delta: { content: "ok" } }] }]);
   });
   const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/o/v1/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -982,54 +780,10 @@ test("gateway: generic route maps x-api-provider and keeps the canonical system 
   });
 });
 
-test("gateway: upstream 401 forces exactly one WorkOS refresh and retries", async (t) => {
-  const staleToken = makeJwt({ exp: Math.floor(Date.now() / 1000) + 600 });
-  const home = seedFactoryHome(t, {
-    access_token: staleToken,
-    refresh_token: "refresh-old",
-    active_organization_id: null,
-  });
-  const freshToken = makeJwt({ exp: Math.floor(Date.now() / 1000) + 7200 });
-  const workos = await startMockWorkos(t, () => ({
-    access_token: freshToken,
-    refresh_token: "refresh-new",
-  }));
-  const upstream = await startMockUpstream(t, (record, res) => {
-    if (record.headers.authorization === `Bearer ${freshToken}`) {
-      sseReply(res, [{ type: "message_start" }]);
-      return;
-    }
-    res.writeHead(401, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: { type: "authentication_error" } }));
-  });
-  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
-  await withEnv(
-    { FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: workos.baseURL },
-    async () => {
-      const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/a/v1/messages`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-5", messages: [{ role: "user", content: "hi" }] }),
-      });
-      assert.equal(res.status, 200);
-      await readAll(res);
-      assert.equal(upstream.seen.length, 2);
-      assert.equal(upstream.seen[0].headers.authorization, `Bearer ${staleToken}`);
-      assert.equal(upstream.seen[1].headers.authorization, `Bearer ${freshToken}`);
-      assert.equal(workos.seen.length, 1);
-      // The droid envelope on disk now holds the rotated pair.
-      assert.equal(decryptCredential(home).access_token, freshToken);
-      assert.equal(decryptCredential(home).refresh_token, "refresh-new");
-    },
-  );
-});
-
 test("gateway: no credential yields an actionable 401, upstream untouched", async (t) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-home-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, []));
   const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined }, async () => {
+  await withEnv({ FACTORY_API_KEY: undefined }, async () => {
     const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/a/v1/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1037,7 +791,7 @@ test("gateway: no credential yields an actionable 401, upstream untouched", asyn
     });
     assert.equal(res.status, 401);
     const body = await res.json();
-    assert.match(body.error.message, /droid CLI/);
+    assert.match(body.error.message, /Factory API key/);
     // pi-ai formats failures as `${status} ${msg}` from a TOP-LEVEL message;
     // without one every auth failure degrades to a bare "401 unauthorized".
     assert.equal(body.message, body.error.message);
@@ -1055,7 +809,7 @@ test("gateway: journal records the forwarded request shape and upstream status",
     sseReply(res, [{ choices: [{ delta: { content: "ok" } }] }]);
   });
   const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/o/v1/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1081,18 +835,16 @@ test("gateway: journal records the forwarded request shape and upstream status",
 });
 
 test("gateway: status and models routes report state and the catalog", async (t) => {
-  const home = seedFactoryHome(t, {
-    access_token: makeJwt({ exp: Math.floor(Date.now() / 1000) + 3600 }),
-    refresh_token: "r",
-    active_organization_id: "org_7",
-  });
+  const home = seedFactoryHome(t, { access_token: `fk-status-${"e".repeat(40)}` });
   const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, []));
   const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const status = await (await fetch(`${gateway.baseURL}/api/dsh-factory-provider/status`)).json();
     assert.equal(status.ok, true);
-    assert.equal(status.credential.source, "droid-cli");
-    assert.equal(status.credential.orgId, "org_7");
+    assert.equal(status.credential.source, "api-key");
+    // A key carries no identity claims, so there is no org to report.
+    assert.equal(status.credential.orgId, null);
+    assert.equal(status.credential.expiresAt, null);
     assert.equal(status.routes.anthropic.providerKey, "factory-a");
 
     const models = await (await fetch(`${gateway.baseURL}/api/dsh-factory-provider/o/v1/models`)).json();
@@ -1109,7 +861,7 @@ test("gateway: non-loopback Host header is refused (LAN callers)", async (t) => 
   });
   const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, []));
   const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     // fetch forbids setting `host`, so speak raw HTTP with a foreign Host.
     const status = await new Promise((resolve, reject) => {
       const body = JSON.stringify({ model: "claude-sonnet-5", messages: [] });
@@ -1142,7 +894,7 @@ test("gateway: a disabled route answers 404 on its paths", async (t) => {
   });
   const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, []));
   const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, enabledRoutes: ["anthropic"] });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/o/v1/chat/completions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1164,192 +916,6 @@ function credsFor(user, org, exp = FUTURE_EXP) {
     whoami: { premBaseHostV2: `https://${user}.prem.factory.ai` },
   };
 }
-
-test("accounts: save/list/switch/delete roundtrip through the vault API", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_a", "org_a"));
-  const credsB = credsFor("user_b", "org_b");
-  await withEnv(
-    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined },
-    async () => {
-      // Snapshot the live default login, then add a second account.
-      const saved = saveCurrentAccount({ label: "main" });
-      assert.equal(saved.created, true);
-      const savedB = saveAccount({ label: "second", creds: credsB });
-      const accounts = listAccounts();
-      assert.equal(accounts.length, 2);
-      const a = accounts.find((x) => x.id === saved.id);
-      const b = accounts.find((x) => x.id === savedB.id);
-      assert.equal(a.email, "user_a@test.dev");
-      assert.equal(a.matchesDroidCli, true);
-      assert.equal(b.matchesDroidCli, false);
-      assert.equal(b.premBaseHost, "https://user_b.prem.factory.ai");
-
-      // Re-saving the same identity upserts instead of duplicating.
-      const again = saveAccount({ label: "second-renamed", creds: credsB });
-      assert.equal(again.id, savedB.id);
-      assert.equal(again.created, false);
-      assert.equal(listAccounts().find((x) => x.id === savedB.id).label, "second-renamed");
-
-      // Switching: the resolver resolves the active snapshot's token.
-      setActiveAccountId(savedB.id);
-      assert.equal(activeAccountHome(), path.join(accountsRoot(), savedB.id));
-      const resolver = createTokenResolver({ activeHome: () => activeAccountHome() });
-      const state = await resolver.resolve();
-      assert.equal(state.source, "droid-cli");
-      assert.equal(state.orgId, "org_b");
-      assert.equal(jwtOf(state.token).sub, "user_b");
-
-      // Switch back to the default login.
-      setActiveAccountId(undefined);
-      resolver.reset();
-      const back = await resolver.resolve();
-      assert.equal(jwtOf(back.token).sub, "user_a");
-
-      // Deleting the active account clears the active pointer.
-      setActiveAccountId(savedB.id);
-      deleteAccount(savedB.id);
-      assert.equal(fs.existsSync(path.join(vault, savedB.id)), false);
-      assert.equal(getActiveAccountId(), undefined);
-    },
-  );
-});
-
-test("accounts: an api-key env still wins over the active account snapshot", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_a", "org_a"));
-  await withEnv(
-    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: "fk-live" },
-    async () => {
-      saveCurrentAccount({ label: "main" });
-      const accounts = listAccounts();
-      setActiveAccountId(accounts[0].id);
-      const resolver = createTokenResolver({ activeHome: () => activeAccountHome() });
-      const state = await resolver.resolve();
-      assert.equal(state.source, "api-key");
-      assert.equal(state.token, "fk-live");
-      setActiveAccountId(undefined);
-    },
-  );
-});
-
-test("accounts: refresh rotates the snapshot in its own home, default login untouched", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_a", "org_a"));
-  const expired = credsFor("user_b", "org_b", Math.floor(Date.now() / 1000) - 10);
-  let workosCalls = 0;
-  const fetchImpl = async () => {
-    workosCalls += 1;
-    return {
-      ok: true,
-      json: async () => ({
-        access_token: makeJwt({ sub: "user_b", exp: Math.floor(Date.now() / 1000) + 3600 }),
-        refresh_token: "refresh-new",
-      }),
-    };
-  };
-  await withEnv(
-    {
-      FACTORY_HOME: defaultHome,
-      DSH_FACTORY_ACCOUNTS_DIR: vault,
-      FACTORY_API_KEY: undefined,
-      FACTORY_WORKOS_BASE_URL: "http://workos.test",
-    },
-    async () => {
-      const { id } = saveAccount({ label: "b", creds: expired });
-      const dir = path.join(vault, id);
-      const rotated = await resolveCredentialForHome(dir, { fetchImpl });
-      assert.equal(rotated.refresh_token, "refresh-new");
-      assert.equal(workosCalls, 1);
-      // Rotation landed in the snapshot, not in the default droid login.
-      assert.equal(decryptCredential(dir).refresh_token, "refresh-new");
-      assert.equal(decryptCredential(defaultHome).refresh_token, "refresh-user_a");
-      // resolveAccountCredential reads through the vault by id.
-      const viaVault = await resolveAccountCredential(id, { fetchImpl });
-      assert.equal(viaVault.access_token, rotated.access_token);
-    },
-  );
-});
-
-test("accounts: snapshot homes decrypt via the default home's auth.v2.key when they have no key file", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_a", "org_a"));
-  await withEnv(
-    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined, FACTORY_AUTH_KEY: undefined },
-    async () => {
-      const { id } = saveCurrentAccount({ label: "main" });
-      const dir = path.join(vault, id);
-      assert.equal(fs.existsSync(path.join(dir, "auth.v2.key")), false);
-      assert.notEqual(decryptCredential(dir), undefined);
-    },
-  );
-});
-
-test("accounts: pending login dirs are adopted once droid writes its envelope", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_a", "org_a"));
-  await withEnv(
-    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined },
-    async () => {
-      const pending = createPendingAccount({ label: "work" });
-      // The command must be pasteable as-is on this OS: the override points at
-      // the pending home and the CLI is the resolved absolute path (droid is
-      // often installed outside PATH).
-      assert.ok(pending.command.includes(`FACTORY_HOME_OVERRIDE=`));
-      assert.ok(pending.command.includes(pending.home));
-      assert.ok(pending.command.includes("droid"));
-      if (process.platform === "win32") {
-        assert.match(pending.command, /^\$env:FACTORY_HOME_OVERRIDE=/);
-        assert.match(pending.windowsCommand, /^set "FACTORY_HOME_OVERRIDE=/);
-      } else {
-        assert.match(pending.command, /^FACTORY_HOME_OVERRIDE=/);
-        assert.ok(!pending.command.includes("$env:"));
-      }
-      assert.equal(listAccounts().find((x) => x.id === pending.id)?.state, "pending");
-      // The isolated-home official login lands the envelope in that dir.
-      saveAccount({ label: "work", creds: credsFor("user_c", "org_c") });
-      // adopt by writing into the pending dir directly (what droid does):
-      writeCredential(credsFor("user_c", "org_c"), pending.home);
-      const adopted = listAccounts().find((x) => x.id === pending.id);
-      assert.equal(adopted.state, "ready");
-      assert.equal(adopted.email, "user_c@test.dev");
-      assert.equal(adopted.label, "work");
-    },
-  );
-});
-
-test("accounts: per-account quota reads the billing endpoint with that account's token", async (t) => {
-  let seen = {};
-  const server = http.createServer((req, res) => {
-    seen = { auth: req.headers.authorization, org: req.headers["x-factory-org-id"] };
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ usesTokenRateLimitsBilling: true, limits: { standard: { fiveHour: { usedPercent: 12 } } } }));
-  });
-  const port = await listen(server);
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_a", "org_a"));
-  await withEnv(
-    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined },
-    async () => {
-      const { id } = saveAccount({ label: "b", creds: credsFor("user_b", "org_b") });
-      const envelope = await resolveAccountCredential(id);
-      const quota = await fetchQuota({
-        credential: { token: envelope.access_token, orgId: envelope.active_organization_id },
-        host: `http://127.0.0.1:${port}`,
-      });
-      assert.equal(quota.ok, true);
-      assert.equal(quota.value.standard.fiveHour.usedPercent, 12);
-      assert.equal(seen.auth, `Bearer ${envelope.access_token}`);
-      assert.equal(seen.org, "org_b");
-    },
-  );
-});
 
 test("accounts: reject path-traversal ids", async (t) => {
   assert.throws(() => deleteAccount("../escape"));
@@ -1416,50 +982,6 @@ test("client: registers a settings.section entry with the expected shape", async
   }
 });
 
-test("accounts: a pending login droid wrote under .factory/ is adopted", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  // Default home in the droid >= 0.231 layout (envelope only, key in the
-  // keychain in production — FACTORY_AUTH_KEY stands in here).
-  const defaultHome = seedKeychainHome(t, credsFor("user_a", "org_a")).home;
-  const nestedKey = crypto.randomBytes(32);
-  await withEnv(
-    {
-      FACTORY_HOME: defaultHome,
-      DSH_FACTORY_ACCOUNTS_DIR: vault,
-      FACTORY_API_KEY: undefined,
-      FACTORY_AUTH_KEY: nestedKey.toString("base64"),
-    },
-    async () => {
-      // Pending login dir as the plugin creates it; droid run with
-      // FACTORY_HOME_OVERRIDE=<dir> writes its envelope one level deeper.
-      const dir = path.join(vault, "login-abc123");
-      fs.mkdirSync(path.join(dir, ".factory"), { recursive: true, mode: 0o700 });
-      fs.writeFileSync(
-        path.join(dir, "meta.json"),
-        JSON.stringify({ label: "login-abc123", pending: true }),
-        { mode: 0o600 },
-      );
-      fs.writeFileSync(
-        path.join(dir, ".factory", "auth.v2.loginkeychain"),
-        encryptEnvelope(nestedKey, credsFor("user_c", "org_c")),
-        { mode: 0o600 },
-      );
-      // The vault adopts the nested envelope: ready, with identity read.
-      const adopted = listAccounts().find((a) => a.id === "login-abc123");
-      assert.equal(adopted.state, "ready");
-      assert.equal(adopted.email, "user_c@test.dev");
-      assert.equal(adopted.matchesDroidCli, false);
-
-      // Switching and resolving go through the nested home.
-      setActiveAccountId("login-abc123");
-      assert.equal(activeAccountHome(), path.join(dir, ".factory"));
-      const creds = await resolveAccountCredential("login-abc123");
-      assert.equal(creds.active_organization_id, "org_c");
-    },
-  );
-});
-
 // --- openai (GPT) route -----------------------------------------------------------
 
 test("catalog: openai route lists probed-callable GPT models only", () => {
@@ -1510,7 +1032,7 @@ test("gateway: openai route carries azure_openai + openai-platform headers", asy
   });
   const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, [{ type: "response.output_text.delta", delta: "PONG" }]));
   const gw = await startGateway(t, { upstreamBaseURL: upstream.baseURL, enabledRoutes: ["openai"] });
-  await withEnv({ FACTORY_HOME: home, FACTORY_API_KEY: undefined, FACTORY_WORKOS_BASE_URL: "http://127.0.0.1:1/unused" }, async () => {
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
     const res = await fetch(`${gw.baseURL}/api/dsh-factory-provider/openai/v1/responses`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1558,7 +1080,6 @@ test("config: every settings-editable field is volatile", () => {
     "apiBaseURL",
     "quotaHost",
     "keyEnv",
-    "refreshWindowMinutes",
     "proactiveRefreshMinutes",
     "modelAllowlist",
   ]) {
@@ -1660,458 +1181,12 @@ test("apply: modelAllowlist narrows the provider entries to the ticked models", 
   );
 });
 
-test("apply: an active saved account does not abort route registration", async (t) => {
-  // Regression for a silent total outage: applyAccountHost() closes over
-  // `gateway`, so applying the persisted account selection BEFORE
-  // createGateway() threw a temporal-dead-zone ReferenceError out of apply().
-  // Every route — and with them the providers, the settings card and the
-  // gateway — disappeared on every boot with a saved account active, and the
-  // host log said nothing.
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_a", "org_a"));
-  await withEnv(
-    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined },
-    async () => {
-      const { id } = saveCurrentAccount({ label: "main" });
-      setActiveAccountId(id);
-      assert.equal(getActiveAccountId(), id);
-      assert.equal(listAccounts().find((account) => account.id === id)?.state, "ready");
-
-      const registered = [];
-      const disposers = [];
-      const settings = {
-        installSection: () => {},
-        describe: () => [
-          { ns: "llm-pi-ai", revision: 1, value: { providers: {} } },
-          { ns: "dsh-factory-provider", revision: 1, value: {} },
-        ],
-        mutate: async () => {},
-      };
-      const webServer = {
-        port: 19387,
-        register: (route) => {
-          registered.push(route.path);
-          return () => {};
-        },
-      };
-      const ctx = {
-        logger: { info: () => {}, warn: () => {} },
-        get: () => undefined,
-        inject: (_services, callback) => {
-          const sctx = {
-            webServer,
-            settings,
-            effect: (fn) => {
-              const dispose = fn();
-              if (typeof dispose === "function") disposers.push(dispose);
-              return () => {};
-            },
-            on: () => () => {},
-          };
-          const dispose = callback(sctx);
-          if (typeof dispose === "function") disposers.push(dispose);
-          return () => {};
-        },
-      };
-
-      apply(ctx, { enabled: true, proactiveRefreshMinutes: 0 });
-      assert.ok(
-        registered.includes("/api/dsh-factory-provider/status"),
-        `gateway routes registered (got: ${registered.join(", ") || "none"})`,
-      );
-      assert.ok(registered.includes("/api/dsh-factory-provider/o/v1/chat/completions"));
-      assert.ok(registered.includes("/api/dsh-factory-provider/quota"));
-      for (const dispose of disposers) dispose();
-    },
-  );
-});
-
 // --- cross-platform (Windows / Linux / macOS) ------------------------------------
 //
 // The plugin has to work on a machine it was not developed on, so the platform
 // matrix is exercised by injection: every resolver takes `{ platform, env,
 // homedir }`, and the keyring readers are asserted as commands instead of being
 // executed. That keeps the whole Windows/Linux surface testable from macOS.
-
-test("platform: droid executable candidates are per-OS", () => {
-  const winEnv = {
-    LOCALAPPDATA: "C:\\Users\\demo\\AppData\\Local",
-    APPDATA: "C:\\Users\\demo\\AppData\\Roaming",
-    ProgramFiles: "C:\\Program Files",
-  };
-  const win = droidCandidates({ platform: "win32", homedir: "C:\\Users\\demo", env: winEnv });
-  assert.ok(win.includes("C:\\Users\\demo\\AppData\\Local\\Programs\\Factory\\droid.exe"));
-  assert.ok(win.includes("C:\\Users\\demo\\AppData\\Roaming\\npm\\droid.cmd"));
-  assert.ok(win.includes("C:\\Users\\demo\\.factory\\bin\\droid.exe"));
-  assert.ok(win.every((candidate) => !candidate.includes("/")), "no POSIX separators on Windows");
-
-  const mac = droidCandidates({ platform: "darwin", homedir: "/Users/demo", env: {} });
-  assert.ok(mac.includes("/Users/demo/.local/bin/droid"));
-  assert.ok(mac.includes("/Applications/Factory.app/Contents/Resources/bin/droid"));
-  assert.ok(mac.every((candidate) => !candidate.includes("\\")), "no Windows separators on macOS");
-
-  const linux = droidCandidates({ platform: "linux", homedir: "/home/demo", env: {} });
-  assert.ok(linux.includes("/home/demo/.local/bin/droid"));
-  assert.ok(linux.includes("/usr/local/bin/droid"));
-  assert.ok(!linux.some((candidate) => candidate.startsWith("/Applications")));
-
-  // Without LOCALAPPDATA/APPDATA the profile-relative defaults are used.
-  const bare = droidCandidates({ platform: "win32", homedir: "C:\\Users\\demo", env: {} });
-  assert.ok(bare.includes("C:\\Users\\demo\\AppData\\Local\\Programs\\Factory\\droid.exe"));
-});
-
-test("platform: findDroidExecutable takes the first existing candidate", () => {
-  const options = { platform: "win32", homedir: "C:\\Users\\demo", env: {} };
-  const candidates = droidCandidates(options);
-  const target = candidates[2];
-  assert.equal(
-    findDroidExecutable({ ...options, exists: (candidate) => candidate === target }),
-    target,
-  );
-  assert.equal(findDroidExecutable({ ...options, exists: () => false }), undefined);
-  assert.equal(
-    findDroidExecutable({
-      ...options,
-      exists: () => {
-        throw new Error("EACCES");
-      },
-    }),
-    undefined,
-    "an unreadable candidate is skipped, not fatal",
-  );
-});
-
-test("platform: the login command is pasteable on each OS", () => {
-  const winHome = "C:\\Users\\demo\\AppData\\Roaming\\dsh accounts\\work-1";
-  const winDroid = "C:\\Program Files\\Factory\\droid.exe";
-  const powershell = loginCommand({ platform: "win32", home: winHome, droid: winDroid });
-  assert.match(powershell, /^\$env:FACTORY_HOME_OVERRIDE="/);
-  assert.ok(powershell.includes("& \"C:\\Program Files\\Factory\\droid.exe\""));
-  assert.ok(powershell.includes(winHome), "the path with a space stays quoted");
-
-  const cmd = loginCommand({ platform: "win32", home: winHome, droid: winDroid, shell: "cmd" });
-  assert.match(cmd, /^set "FACTORY_HOME_OVERRIDE=/);
-  assert.ok(cmd.includes("&&"));
-
-  for (const platform of ["darwin", "linux"]) {
-    const sh = loginCommand({ platform, home: "/home/demo/accounts/a b", droid: "/usr/local/bin/droid" });
-    assert.match(sh, /^FACTORY_HOME_OVERRIDE="/);
-    assert.ok(!sh.includes("$env:"), "no PowerShell syntax on POSIX");
-    assert.ok(!sh.startsWith("set "), "no cmd.exe syntax on POSIX");
-  }
-});
-
-test("platform: keyring commands match each OS backend", () => {
-  const mac = authKeyCommands({ platform: "darwin", env: {} });
-  assert.equal(mac.length, 1);
-  assert.equal(mac[0].file, "/usr/bin/security");
-  assert.deepEqual(mac[0].args, [
-    "find-generic-password",
-    "-s",
-    "Factory CLI",
-    "-a",
-    "auth-encryption-key-security-cli",
-    "-w",
-  ]);
-
-  const win = authKeyCommands({ platform: "win32", env: {} });
-  assert.equal(win.length, 1);
-  assert.equal(win[0].file, "powershell");
-  const script = win[0].args.at(-1);
-  assert.ok(script.includes("CredReadW"), "reads the Credential Manager through advapi32");
-  assert.ok(script.includes("'Factory CLI'"), "looks up the droid target");
-  assert.equal(win[0].parse, "windows-credential");
-  assert.equal(win[0].account, "auth-encryption-key-security-cli");
-
-  const linux = authKeyCommands({ platform: "linux", env: {} });
-  assert.equal(linux[0].file, "secret-tool");
-  assert.deepEqual(linux[0].args, [
-    "lookup",
-    "service",
-    "Factory CLI",
-    "account",
-    "auth-encryption-key-security-cli",
-  ]);
-
-  const custom = authKeyCommands({
-    platform: "linux",
-    env: { FACTORY_KEYCHAIN_SERVICE: "Acme", FACTORY_KEYCHAIN_ACCOUNT: "key-1" },
-  });
-  assert.deepEqual(custom[0].args, ["lookup", "service", "Acme", "account", "key-1"]);
-  assert.deepEqual(authKeyCommands({ platform: "freebsd", env: {} }), []);
-});
-
-test("platform: every envelope name droid may write is known", () => {
-  assert.deepEqual(ENVELOPE_NAMES, ["auth.v2.file", "auth.v2.keyring", "auth.v2.loginkeychain"]);
-});
-
-test("credentials: the envelope name defaults to the key backend of the OS", (t) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-env-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  const name = (platform, options = { exists: () => false }) =>
-    path.basename(envelopeFile(home, { platform, ...options }));
-  assert.equal(name("win32"), "auth.v2.keyring");
-  assert.equal(name("linux"), "auth.v2.keyring");
-  assert.equal(name("darwin"), "auth.v2.loginkeychain");
-  // Whatever exists wins, in droid's own preference order.
-  fs.writeFileSync(path.join(home, "auth.v2.keyring"), "x");
-  assert.equal(name("darwin", {}), "auth.v2.keyring");
-  fs.writeFileSync(path.join(home, "auth.v2.file"), "x");
-  assert.equal(name("win32", {}), "auth.v2.file");
-});
-
-test("credentials: normalizeKey accepts CRLF, UTF-16 blobs and unpadded base64", () => {
-  const key = crypto.randomBytes(32);
-  const base64 = key.toString("base64");
-  assert.deepEqual(normalizeKey(`${base64}\r\n`), key, "a Windows text file ends in CRLF");
-  assert.deepEqual(normalizeKey(Buffer.from(base64, "utf16le").toString("utf8")), key, "a Credential Manager blob is UTF-16");
-  assert.deepEqual(normalizeKey(base64.replace(/=+$/, "")), key, "padding is optional");
-  assert.equal(normalizeKey("not a key!"), undefined);
-  assert.equal(normalizeKey(""), undefined);
-  assert.equal(normalizeKey(undefined), undefined);
-  assert.equal(normalizeKey(null), undefined);
-});
-
-test("credentials: a Windows keyring layout decrypts with the CredRead result", (t) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-win-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  const key = crypto.randomBytes(32);
-  const creds = credsFor("user_win", "org_win");
-  fs.writeFileSync(path.join(home, "auth.v2.keyring"), encryptEnvelope(key, creds));
-
-  const calls = [];
-  const runCommand = (file, args) => {
-    calls.push({ file, args });
-    return `auth-encryption-key-security-cli\t${key.toString("base64")}`;
-  };
-  const decrypted = decryptCredential(home, {
-    platform: "win32",
-    env: {},
-    defaultHome: home,
-    runCommand,
-  });
-  assert.equal(decrypted.active_organization_id, "org_win");
-  assert.equal(jwtOf(decrypted.access_token).sub, "user_win");
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].file, "powershell");
-  assert.ok(calls[0].args.at(-1).includes("CredReadW"));
-});
-
-test("credentials: a foreign Credential Manager entry is rejected, not mis-decrypted", (t) => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "factory-win2-"));
-  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
-  const key = crypto.randomBytes(32);
-  fs.writeFileSync(path.join(home, "auth.v2.keyring"), encryptEnvelope(key, credsFor("user_x", "org_x")));
-
-  const result = resolveAuthKey(home, {
-    platform: "win32",
-    env: {},
-    defaultHome: home,
-    runCommand: () => `somebody-else\t${key.toString("base64")}`,
-  });
-  assert.equal(result.key, undefined, "another account's credential on the same target is not ours");
-  assert.ok(result.attempts.includes("windows-credential-manager:unusable"));
-});
-
-test("credentials: key sources are tried in a fixed, platform-independent order", (t) => {
-  const local = fs.mkdtempSync(path.join(os.tmpdir(), "factory-src-"));
-  const other = fs.mkdtempSync(path.join(os.tmpdir(), "factory-src2-"));
-  t.after(() => {
-    fs.rmSync(local, { recursive: true, force: true });
-    fs.rmSync(other, { recursive: true, force: true });
-  });
-  const localKey = crypto.randomBytes(32);
-  const machineKey = crypto.randomBytes(32);
-  const envKey = crypto.randomBytes(32);
-  const commandKey = crypto.randomBytes(32);
-  const keyringKey = crypto.randomBytes(32);
-  const b64 = (buffer) => buffer.toString("base64");
-  const base = {
-    platform: "linux",
-    defaultHome: other,
-    readFile: (file) => {
-      if (file === path.join(other, "auth.v2.key")) return b64(machineKey);
-      if (file === path.join(local, "auth.v2.key")) return b64(localKey);
-      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
-    },
-  };
-
-  // 1. this home's key file
-  assert.equal(resolveAuthKey(local, base).source, "auth.v2.key");
-  // 2. the default home's key file — a snapshot home shares the machine key
-  const noLocal = { ...base, readFile: (file) => (file.startsWith(other) ? b64(machineKey) : (() => { throw new Error("ENOENT"); })()) };
-  assert.equal(resolveAuthKey(local, noLocal).source, "default-auth.v2.key");
-  // 3. FACTORY_AUTH_KEY
-  const noFiles = { ...base, readFile: () => { throw new Error("ENOENT"); } };
-  assert.equal(resolveAuthKey(local, { ...noFiles, env: { FACTORY_AUTH_KEY: b64(envKey) } }).source, "FACTORY_AUTH_KEY");
-  // 4. FACTORY_AUTH_KEY_COMMAND (the escape hatch for locked-down machines)
-  const viaCommand = resolveAuthKey(local, {
-    ...noFiles,
-    env: { FACTORY_AUTH_KEY_COMMAND: "get-key --raw" },
-    runCommand: (file) => (file === "get-key --raw" ? b64(commandKey) : ""),
-  });
-  assert.equal(viaCommand.source, "FACTORY_AUTH_KEY_COMMAND");
-  assert.deepEqual(viaCommand.key, commandKey);
-  // 5. the OS keyring
-  const viaKeyring = resolveAuthKey(local, {
-    ...noFiles,
-    env: {},
-    runCommand: (file) => (file === "secret-tool" ? `${b64(keyringKey)}\n` : ""),
-  });
-  assert.equal(viaKeyring.source, "linux-secret-service");
-  assert.deepEqual(viaKeyring.key, keyringKey);
-  // Nothing available: the attempts list is what makes this diagnosable.
-  const nothing = resolveAuthKey(local, {
-    ...noFiles,
-    env: {},
-    runCommand: () => {
-      throw new Error("not found");
-    },
-  });
-  assert.equal(nothing.key, undefined);
-  assert.deepEqual(nothing.attempts, [
-    "auth.v2.key:absent",
-    "default-auth.v2.key:absent",
-    "linux-secret-service:absent",
-    "linux-secret-service-username:absent",
-  ]);
-});
-
-test("credentials: the macOS keychain path still resolves and reports its source", async (t) => {
-  const { home, keyBase64 } = seedKeychainHome(t, credsFor("user_kc", "org_kc"));
-  const calls = [];
-  const runCommand = (file, args) => {
-    calls.push({ file, args });
-    return `${keyBase64}\n`;
-  };
-  await withEnv({ FACTORY_HOME: home, FACTORY_AUTH_KEY: undefined, FACTORY_AUTH_KEY_COMMAND: undefined }, async () => {
-    const creds = decryptCredential(home, { platform: "darwin", env: {}, defaultHome: home, runCommand });
-    assert.equal(creds.active_organization_id, "org_kc");
-    assert.equal(calls[0].file, "/usr/bin/security");
-    assert.equal(readAuthKey(home, { platform: "darwin", env: {}, defaultHome: home, runCommand }) !== undefined, true);
-    assert.equal(authKeySource(), "macos-login-keychain");
-  });
-});
-
-test("accounts: a Windows-layout snapshot is adopted instead of looking pending", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-win-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const key = crypto.randomBytes(32);
-  const dir = path.join(vault, "win-account");
-  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-  fs.writeFileSync(path.join(dir, "meta.json"), JSON.stringify({ label: "win", pending: true }));
-  fs.writeFileSync(path.join(dir, "auth.v2.keyring"), encryptEnvelope(key, credsFor("user_w", "org_w")));
-
-  await withEnv(
-    { DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_AUTH_KEY: key.toString("base64"), FACTORY_API_KEY: undefined },
-    async () => {
-      const account = listAccounts().find((entry) => entry.id === "win-account");
-      assert.equal(account.state, "ready", "auth.v2.keyring is recognised like any other envelope");
-      assert.equal(account.email, "user_w@test.dev");
-    },
-  );
-});
-
-test("accounts: deleting the account in use stops credential serving", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-del-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_default", "org_default"));
-
-  await withEnv(
-    {
-      FACTORY_HOME: defaultHome,
-      DSH_FACTORY_ACCOUNTS_DIR: vault,
-      FACTORY_API_KEY: undefined,
-      FACTORY_AUTH_KEY: undefined,
-    },
-    async () => {
-      const resolver = createTokenResolver({
-        activeHome: () => activeAccountHome(),
-        disabled: () => getCredentialMode() === "off",
-      });
-
-      // Out of the box the droid CLI's own login is used.
-      assert.equal(getCredentialMode(), "default");
-      assert.equal(jwtOf((await resolver.resolve()).token).sub, "user_default");
-
-      const saved = saveAccount({ label: "second", creds: credsFor("user_second", "org_second") });
-      setActiveAccountId(saved.id);
-      assert.equal(getCredentialMode(), "account");
-      resolver.reset();
-      assert.equal(jwtOf((await resolver.resolve()).token).sub, "user_second");
-
-      // Deleting the account in use must stop serving credentials: no silent
-      // fallback to the droid CLI login (or to another snapshot), so quota reads
-      // and model calls fail until an account is picked again.
-      deleteAccount(saved.id);
-      assert.equal(getActiveAccountId(), undefined);
-      assert.equal(getCredentialMode(), "off");
-      resolver.reset();
-      const after = await resolver.resolve();
-      assert.equal(after.source, "disabled");
-      assert.equal(after.token, undefined);
-      assert.equal(activeAccountHome(), undefined);
-
-      // "Switch back to the default login" is the explicit way out.
-      useDefaultCredentials();
-      assert.equal(getCredentialMode(), "default");
-      resolver.reset();
-      const restored = await resolver.resolve();
-      assert.equal(restored.source, "droid-cli");
-      assert.equal(jwtOf(restored.token).sub, "user_default");
-    },
-  );
-});
-
-test("accounts: deleting another account leaves the credential mode alone", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-del2-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_default", "org_default"));
-
-  await withEnv(
-    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined },
-    async () => {
-      const keep = saveAccount({ label: "keep", creds: credsFor("user_keep", "org_keep") });
-      const drop = saveAccount({ label: "drop", creds: credsFor("user_drop", "org_drop") });
-      setActiveAccountId(keep.id);
-      deleteAccount(drop.id);
-      assert.equal(getCredentialMode(), "account", "the active account is untouched");
-      assert.equal(getActiveAccountId(), keep.id);
-    },
-  );
-});
-
-test("accounts: credentials can be turned off explicitly and restored", async (t) => {
-  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-off-"));
-  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
-  const defaultHome = seedFactoryHome(t, credsFor("user_default", "org_default"));
-
-  await withEnv(
-    { FACTORY_HOME: defaultHome, DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined },
-    async () => {
-      const resolver = createTokenResolver({
-        activeHome: () => activeAccountHome(),
-        disabled: () => getCredentialMode() === "off",
-      });
-      disableCredentials();
-      assert.equal(getCredentialMode(), "off");
-      const off = await resolver.resolve();
-      assert.equal(off.source, "disabled");
-      assert.equal(off.token, undefined);
-      // A forced refresh (the gateway does this after an upstream 401) must not
-      // sneak a credential back in.
-      resolver.reset();
-      const forced = await resolver.resolve({ force: true });
-      assert.equal(forced.token, undefined);
-
-      setActiveAccountId(undefined);
-      assert.equal(getCredentialMode(), "default");
-      resolver.reset();
-      assert.equal((await resolver.resolve()).source, "droid-cli");
-    },
-  );
-});
 
 test("client: every literal label is defined in both languages", () => {
   // The card's labels live in two plain dictionaries inside client.js. A key
@@ -2126,4 +1201,785 @@ test("client: every literal label is defined in both languages", () => {
     if (definitions.length < 2) missing.push(`${key}:${definitions.length}`);
   }
   assert.deepEqual(missing, [], "each label is defined in the zh and en dictionaries");
+});
+
+// --- API-key accounts (0.7.0-beta) ----------------------------------------------
+
+test("accounts: an API key is stored as a switchable account entry", async (t) => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-vault-key-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+  const key = "fk-TESTKEYNOTAREALKEY0000000000000000000000000000000000000000000000000";
+  await withEnv(
+    { DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined },
+    async () => {
+      const saved = saveApiKeyAccount({ label: "work", key });
+      assert.equal(saved.created, true);
+      const entry = listAccounts().find((account) => account.id === saved.id);
+      assert.equal(entry.kind, "api-key");
+      assert.equal(entry.state, "ready");
+      assert.equal(entry.label, "work");
+      assert.equal(entry.keyHint, key.slice(-4));
+
+      // The list must never carry the key itself: only the last four characters.
+      assert.ok(!JSON.stringify(entry).includes(key.slice(0, 30)), "full key is not exposed");
+
+      // The key lives in a 0600 file inside the per-account directory.
+      const file = path.join(vault, saved.id, "api-key");
+      assert.equal(fs.readFileSync(file, "utf8"), key);
+      assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+
+      // Saving the same key again updates its entry instead of duplicating it.
+      const again = saveApiKeyAccount({ label: "work renamed", key });
+      assert.equal(again.created, false);
+      assert.equal(again.id, saved.id);
+      assert.equal(listAccounts().filter((a) => a.kind === "api-key").length, 1);
+
+      // A non-key string is refused.
+      assert.throws(() => saveApiKeyAccount({ label: "bad", key: "not a key" }), /does not look like/);
+      assert.throws(() => saveApiKeyAccount({ label: "bad", key: `fk-${"x".repeat(30)} y` }), /does not look like/);
+    },
+  );
+});
+
+// --- account keys (key-only credential) -------------------------------------------
+
+test("accounts: save / list / switch / delete a key roundtrip", async (t) => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-keys-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+  const work = `fk-work-${"a".repeat(40)}`;
+  const personal = `fk-personal-${"b".repeat(40)}`;
+  await withEnv({ DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined }, async () => {
+    const first = saveApiKeyAccount({ label: "work", key: work });
+    const second = saveApiKeyAccount({ label: "personal", key: personal });
+    assert.equal(first.created, true);
+    assert.equal(second.created, true);
+
+    const listed = listAccounts();
+    assert.equal(listed.length, 2);
+    assert.deepEqual(listed.map((a) => a.label).sort(), ["personal", "work"]);
+    assert.ok(listed.every((a) => a.kind === "api-key" && a.state === "ready"));
+
+    // Selecting one points the resolver at it.
+    setActiveAccountId(second.id);
+    assert.equal(getActiveAccountId(), second.id);
+    assert.equal(getCredentialMode(), "account");
+    assert.equal(activeApiKey(), personal);
+
+    const resolver = createTokenResolver({
+      activeKey: () => activeApiKey(),
+      disabled: () => getCredentialMode() === "off",
+    });
+    assert.equal((await resolver.resolve()).token, personal);
+
+    // Deleting the selected key stops credential serving outright.
+    deleteAccount(second.id);
+    assert.equal(getCredentialMode(), "off");
+    resolver.reset();
+    assert.equal((await resolver.resolve()).source, "disabled");
+
+    // Clearing the selection drops the "off" state as well.
+    clearActiveAccount();
+    assert.equal(getCredentialMode(), "none");
+    assert.equal(activeApiKey(), undefined);
+  });
+});
+
+test("accounts: a selected key wins over an ambient FACTORY_API_KEY", async (t) => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-keys2-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+  const selected = `fk-selected-${"c".repeat(40)}`;
+  await withEnv(
+    { DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: "fk-ambient-env-key-000000000000" },
+    async () => {
+      // Nothing selected: the ambient variable is what the gateway uses.
+      const bare = createTokenResolver({});
+      assert.equal((await bare.resolve()).token, "fk-ambient-env-key-000000000000");
+
+      const saved = saveApiKeyAccount({ label: "selected", key: selected });
+      setActiveAccountId(saved.id);
+
+      // Selecting a key is an explicit choice, so it beats the ambient variable;
+      // otherwise a leftover env key would silently pin the gateway to one
+      // account and make the account list look broken.
+      const chosen = createTokenResolver({
+        activeKey: () => activeApiKey(),
+        disabled: () => getCredentialMode() === "off",
+      });
+      assert.equal((await chosen.resolve()).token, selected);
+    },
+  );
+});
+
+test("accounts: per-account quota reads the billing endpoint with that key", async (t) => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-keys3-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+  const key = `fk-quota-${"d".repeat(40)}`;
+  const seen = [];
+  await withEnv({ DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined }, async () => {
+    const saved = saveApiKeyAccount({ label: "quota", key });
+    assert.equal(accountApiKey(saved.id), key);
+    const result = await fetchQuota({
+      credential: { token: accountApiKey(saved.id) },
+      fetchImpl: async (url, init) => {
+        seen.push(init.headers.authorization);
+        return {
+          ok: true,
+          json: async () => ({ limits: { standard: { fiveHour: { usedPercent: 7 } } } }),
+        };
+      },
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.value.standard.fiveHour.usedPercent, 7);
+    assert.deepEqual(seen, [`Bearer ${key}`]);
+  });
+});
+
+test("accounts: a leftover droid-CLI snapshot is reported as legacy, never used", async (t) => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-keys4-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+  await withEnv({ DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined }, async () => {
+    // An envelope left behind by the droid-CLI build.
+    const dir = path.join(vault, "old-login");
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(path.join(dir, "auth.v2.keyring"), "iv:tag:ct");
+    fs.writeFileSync(path.join(dir, "meta.json"), JSON.stringify({ label: "old" }));
+
+    const entry = listAccounts().find((a) => a.id === "old-login");
+    assert.equal(entry.kind, "legacy");
+    assert.equal(entry.state, "legacy");
+    assert.equal(entry.label, "old");
+
+    // It is never selected, and never resolved as a credential.
+    assert.throws(() => setActiveAccountId("old-login"), /has no key/);
+    assert.equal(activeApiKey(), undefined);
+
+    // It can be deleted like anything else.
+    deleteAccount("old-login");
+    assert.equal(listAccounts().length, 0);
+  });
+});
+
+test("config: a stored config with the removed refresh field still applies", async () => {
+  // `refreshWindowMinutes` timed droid access-token refreshes and is gone. A
+  // config saved by the older build still carries it, and the plugin must load
+  // rather than reject the whole section.
+  const registered = [];
+  const ctx = {
+    logger: { info: () => {}, warn: () => {} },
+    get: () => undefined,
+    emit: () => {},
+    inject: (_services, callback) => {
+      const settings = {
+        installSection: () => {},
+        describe: () => [{ ns: "llm-pi-ai", revision: 1, value: { providers: {} } }],
+        mutate: async () => {},
+      };
+      const sctx = {
+        webServer: { port: 19387, register: (route) => { registered.push(route.path); return () => {}; } },
+        settings,
+        effect: (fn) => { fn(); return () => {}; },
+        on: () => () => {},
+      };
+      const dispose = callback(sctx);
+      if (typeof dispose === "function") dispose();
+      return () => {};
+    },
+  };
+  apply(ctx, {
+    enabled: true,
+    proactiveRefreshMinutes: 0,
+    refreshWindowMinutes: 15, // legacy field, must be ignored
+  });
+  assert.ok(registered.includes("/api/dsh-factory-provider/status"), "plugin applied despite the legacy field");
+});
+
+test("client and host agree on every account action", () => {
+  // A client bundle from disk can meet a host running an older module
+  // generation, and then a button the card offers answers
+  // "unknown accounts action". Every action the card can send must be handled
+  // by the host half, in both directions.
+  const client = fs.readFileSync(new URL("../lib/client.js", import.meta.url), "utf8");
+  const host = fs.readFileSync(new URL("../lib/index.js", import.meta.url), "utf8");
+
+  const sent = new Set([...client.matchAll(/onAction\("([a-z-]+)"/g)].map((m) => m[1]));
+  const handled = new Set([...host.matchAll(/body\.action === "([a-z-]+)"/g)].map((m) => m[1]));
+  // Two actions are sent without an onAction("…") literal: the paste-key button
+  // passes extra fields through doAccountAction, and the enable/disable switch
+  // picks its action from the current mode.
+  sent.add("save-key");
+  sent.add("clear");
+  sent.add("disable");
+
+  assert.ok(sent.size >= 4, `actions found (${[...sent].join(", ")})`);
+  assert.deepEqual(
+    [...sent].filter((action) => !handled.has(action)),
+    [],
+    "every client action is handled by the host",
+  );
+  assert.deepEqual(
+    [...handled].filter((action) => !sent.has(action)),
+    [],
+    "the host handles nothing the client never sends",
+  );
+});
+
+// --- regression suite for the review findings -------------------------------------
+//
+// Each case here reproduces a finding from the 2026-10-03 review. They are
+// written against observable behaviour (a thrown error, a written file, an
+// upstream call count), not against the shape of the fix, so they keep working
+// if the implementation is reorganised.
+
+// --- settings half: one complete mock, shared -------------------------------------
+//
+// The plugin's unload path calls removeOwnedProviders → readProviders, which
+// needs settings.describe; a mock without it produced an unhandled rejection
+// *after* the assertions had passed, so the suite looked green and still exited
+// non-zero. Every settings mock below therefore provides the same surface, and
+// each test waits for the asynchronous cleanup before it ends.
+
+function makeSettingsMock() {
+  const state = { source: {}, providers: {}, mutations: [] };
+  let hooks;
+  return {
+    state,
+    get hooks() {
+      return hooks;
+    },
+    // The real service hands the section's hooks the same way, and the plugin
+    // reads its live config through the source setter.
+    installSection: (_ctx, _ns, _schema, _entry, h) => {
+      hooks = h;
+      h.setSource(() => state.source);
+    },
+    describe: () => [
+      { ns: "llm-pi-ai", revision: 1, value: { providers: state.providers } },
+      { ns: "dsh-factory-provider", revision: 1, value: {} },
+    ],
+    mutate: async (ns, batch) => {
+      state.mutations.push({ ns, batch });
+      for (const op of batch ?? []) {
+        if (op?.path?.length === 2 && op.path[0] === "providers") {
+          if (op.op === "set" || op.op === "add") state.providers[op.path[1]] = op.value;
+          if (op.op === "remove" || op.op === "delete") delete state.providers[op.path[1]];
+        }
+      }
+    },
+  };
+}
+
+/** Let queued reconcile/cleanup work finish before the test ends. */
+async function settle(times = 4) {
+  for (let i = 0; i < times; i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+}
+
+/** Drive a registered route handler the way the host would. */
+function invokeRoute(handlers, path, { method = "GET", body, remoteAddress = "127.0.0.1", host = "127.0.0.1:19387" } = {}) {
+  return new Promise((resolve) => {
+    const chunks = body === undefined ? [] : [Buffer.from(JSON.stringify(body))];
+    const req = {
+      method,
+      headers: { host, "content-type": "application/json" },
+      socket: { remoteAddress },
+      on() {},
+      off() {},
+      async *[Symbol.asyncIterator]() {
+        for (const chunk of chunks) yield chunk;
+      },
+    };
+    const res = {
+      statusCode: 0,
+      headers: {},
+      body: "",
+      writableEnded: false,
+      writableFinished: false,
+      setHeader(k, v) { this.headers[k] = v; },
+      writeHead(code) { this.statusCode = code; },
+      end(text) { this.body = text ?? ""; this.writableFinished = true; resolve(this); },
+      destroy() { this.writableFinished = true; resolve(this); },
+      on() {},
+      off() {},
+    };
+    const handler = handlers.get(path);
+    if (handler === undefined) {
+      resolve({ statusCode: 0, headers: {}, body: "", missing: true });
+      return;
+    }
+    void handler(req, res);
+  });
+}
+
+test("settings: a change that arrives before the runtime is live is applied once it is", async (t) => {
+  // The onChange hook cannot call into the webServer half before that half
+  // exists. It must not throw, and the change must not be lost: it is replayed
+  // as soon as the runtime is ready.
+  const handlers = new Map();
+  const settings = makeSettingsMock();
+  const sctx = {
+    webServer: {
+      port: 19387,
+      register: (route) => {
+        handlers.set(route.path, route.handler);
+        return () => handlers.delete(route.path);
+      },
+    },
+    settings,
+    effect: (fn) => { fn(); return () => {}; },
+    on: () => () => {},
+  };
+  let releaseInjected;
+  const ctx = {
+    logger: { info: () => {}, warn: () => {} },
+    get: () => undefined,
+    emit: () => {},
+    inject: (services, callback) => {
+      // The settings-only injection runs immediately; the webServer one is held
+      // back so the "not ready yet" window can actually be exercised.
+      if (services.includes("webServer")) {
+        releaseInjected = () => callback(sctx);
+        return () => {};
+      }
+      callback(sctx);
+      return () => {};
+    },
+  };
+
+  settings.state.source = { enabled: true, proactiveRefreshMinutes: 0 };
+  apply(ctx, settings.state.source);
+  assert.equal(typeof settings.hooks?.onChange, "function", "the section installed its hooks");
+  assert.equal(typeof releaseInjected, "function", "the webServer half is still pending");
+
+  // The config changes while the runtime does not exist yet.
+  settings.state.source = { enabled: false, proactiveRefreshMinutes: 0 };
+  assert.doesNotThrow(() => settings.hooks.onChange(), "onChange before the runtime is live");
+
+  releaseInjected();
+  await settle();
+
+  // The replayed change really took effect: the routes report themselves off.
+  const status = await invokeRoute(handlers, "/api/dsh-factory-provider/status");
+  const parsed = JSON.parse(status.body);
+  assert.equal(parsed.routes.generic.enabled, false, "the pending change was applied");
+
+  // And a late callback after unload is still harmless.
+  if (typeof releaseInjected === "function") {
+    /* already released */
+  }
+});
+
+test("settings: every route registration is released on unload", async (t) => {
+  // Both route groups used to write one disposeRoutes variable, so unloading
+  // released only the second group.
+  const registered = [];
+  const disposed = [];
+  const settings = makeSettingsMock();
+  let injectedDisposer;
+  const sctx = {
+    webServer: {
+      port: 19387,
+      register: (route) => {
+        registered.push(route.path);
+        return () => disposed.push(route.path);
+      },
+    },
+    settings,
+    effect: (fn) => { fn(); return () => {}; },
+    on: () => () => {},
+  };
+  const ctx = {
+    logger: { info: () => {}, warn: () => {} },
+    get: () => undefined,
+    emit: () => {},
+    inject: (_services, callback) => {
+      const dispose = callback(sctx);
+      if (typeof dispose === "function") injectedDisposer = dispose;
+      return () => {};
+    },
+  };
+
+  settings.state.source = { enabled: true, proactiveRefreshMinutes: 0 };
+  apply(ctx, settings.state.source);
+  await settle();
+  assert.ok(registered.length >= 10, `registered ${registered.length} routes`);
+
+  injectedDisposer();
+  await settle();
+  assert.deepEqual(
+    [...disposed].sort(),
+    [...registered].sort(),
+    "every registered route is disposed",
+  );
+  assert.doesNotThrow(() => injectedDisposer(), "releasing twice is safe");
+  await settle();
+
+  // A settings callback that arrives after unload must not throw either.
+  assert.doesNotThrow(() => settings.hooks.onChange(), "onChange after unload");
+  await settle();
+});
+
+test("settings: one failing registration does not lose the rest", async (t) => {
+  const registered = [];
+  const disposed = [];
+  let calls = 0;
+  let injectedDisposer;
+  const settings = makeSettingsMock();
+  const sctx = {
+    webServer: {
+      port: 19387,
+      register: (route) => {
+        calls += 1;
+        if (calls === 4) throw new Error("register exploded");
+        registered.push(route.path);
+        return () => disposed.push(route.path);
+      },
+    },
+    settings,
+    effect: (fn) => { fn(); return () => {}; },
+    on: () => () => {},
+  };
+  const ctx = {
+    logger: { info: () => {}, warn: () => {} },
+    get: () => undefined,
+    emit: () => {},
+    inject: (_services, callback) => {
+      const dispose = callback(sctx);
+      if (typeof dispose === "function") injectedDisposer = dispose;
+      return () => {};
+    },
+  };
+
+  settings.state.source = { enabled: true, proactiveRefreshMinutes: 0 };
+  apply(ctx, settings.state.source);
+  await settle();
+  // One route refusing to register used to abort the whole group and lose the
+  // disposers of the ones that had already succeeded.
+  assert.ok(registered.length > 3, `the remaining routes still register (${registered.length})`);
+  injectedDisposer();
+  await settle();
+  assert.deepEqual(disposed.sort(), registered.sort(), "everything registered is released");
+});
+
+test("bridge: management routes refuse a non-loopback caller", async (t) => {
+  // The bridge routes had no guard at all: an external caller reaching a host
+  // bound for LAN access could disable accounts or rewrite the config.
+  const handlers = new Map();
+  const sctx = {
+    webServer: {
+      port: 19387,
+      register: (route) => {
+        handlers.set(route.path, route.handler);
+        return () => {};
+      },
+    },
+    settings: { installSection: () => {} },
+    effect: (fn) => { fn(); return () => {}; },
+    on: () => () => {},
+  };
+  const ctx = {
+    logger: { info: () => {}, warn: () => {} },
+    get: () => undefined,
+    emit: () => {},
+    inject: (_services, callback) => callback(sctx),
+  };
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-bridge-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+
+  await withEnv({ DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined }, async () => {
+    const saved = saveApiKeyAccount({ label: "guard", key: `fk-guard-${"a".repeat(40)}` });
+    setActiveAccountId(saved.id);
+    apply(ctx, { enabled: true, proactiveRefreshMinutes: 0 });
+
+    const invoke = (path, { remoteAddress, host, method = "POST", body }) =>
+      new Promise((resolve) => {
+        const chunks = body === undefined ? [] : [Buffer.from(JSON.stringify(body))];
+        const req = {
+          method,
+          headers: host === undefined ? {} : { host },
+          socket: { remoteAddress },
+          on() {},
+          off() {},
+          async *[Symbol.asyncIterator]() {
+            for (const chunk of chunks) yield chunk;
+          },
+        };
+        const res = {
+          statusCode: 0,
+          headers: {},
+          body: "",
+          setHeader(k, v) { this.headers[k] = v; },
+          writeHead(code) { this.statusCode = code; },
+          end(text) { this.body = text ?? ""; resolve(this); },
+          destroy() { resolve(this); },
+        };
+        void handlers.get(path)(req, res);
+      });
+
+    const remote = await invoke("/api/dsh-factory-provider/accounts", {
+      remoteAddress: "192.0.2.1",
+      host: "evil.example",
+      body: { action: "disable" },
+    });
+    assert.equal(remote.statusCode, 403, "a remote caller is refused");
+    assert.equal(getCredentialMode(), "account", "the refused call changed nothing");
+
+    const foreignHost = await invoke("/api/dsh-factory-provider/accounts", {
+      remoteAddress: "127.0.0.1",
+      host: "evil.example",
+      body: { action: "disable" },
+    });
+    assert.equal(foreignHost.statusCode, 403, "a loopback socket with a foreign Host is refused");
+
+    const local = await invoke("/api/dsh-factory-provider/accounts", {
+      remoteAddress: "127.0.0.1",
+      host: "127.0.0.1:19387",
+      method: "GET",
+    });
+    assert.equal(local.statusCode, 200, "a loopback caller still works");
+  });
+});
+
+test("enabled:false stops inference instead of only hiding the models", async (t) => {
+  // The switch only narrowed the provider list; the forwarding handlers kept
+  // answering and kept billing.
+  let upstreamCalls = 0;
+  const handlers = new Map();
+  const sctx = {
+    webServer: {
+      port: 19387,
+      register: (route) => {
+        handlers.set(route.path, route.handler);
+        return () => {};
+      },
+    },
+    settings: { installSection: () => {} },
+    effect: (fn) => { fn(); return () => {}; },
+    on: () => () => {},
+  };
+  const ctx = {
+    logger: { info: () => {}, warn: () => {} },
+    get: () => undefined,
+    emit: () => {},
+    inject: (_services, callback) => callback(sctx),
+  };
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-off-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+
+  await withEnv({ DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined }, async () => {
+    const saved = saveApiKeyAccount({ label: "off", key: `fk-off-${"b".repeat(40)}` });
+    setActiveAccountId(saved.id);
+    apply(ctx, { enabled: false, proactiveRefreshMinutes: 0 });
+
+    const invoke = (path, body) =>
+      new Promise((resolve) => {
+        const chunks = [Buffer.from(JSON.stringify(body))];
+        const req = {
+          method: "POST",
+          headers: { host: "127.0.0.1:19387", "content-type": "application/json" },
+          socket: { remoteAddress: "127.0.0.1" },
+          on() {},
+          off() {},
+          async *[Symbol.asyncIterator]() {
+            for (const chunk of chunks) yield chunk;
+          },
+        };
+        const res = {
+          statusCode: 0,
+          headers: {},
+          body: "",
+          writableEnded: false,
+          setHeader(k, v) { this.headers[k] = v; },
+          writeHead(code) { this.statusCode = code; },
+          end(text) { this.body = text ?? ""; resolve(this); },
+          destroy() { resolve(this); },
+          on() {},
+          off() {},
+        };
+        void handlers.get(path)(req, res);
+      });
+
+    const res = await invoke("/api/dsh-factory-provider/o/v1/chat/completions", {
+      model: "glm-5.3-flash",
+      messages: [{ role: "user", content: "hi" }],
+    });
+    assert.equal(res.statusCode, 404, "a disabled route answers 404");
+    assert.equal(upstreamCalls, 0, "nothing reached an upstream");
+  });
+});
+
+test("credentials: a stale resolution cannot repopulate the cache", async () => {
+  // resolveOnce wrote the shared cache before the generation check, so a task
+  // that started before a switch could put the previous key back — the caller
+  // then served A after the user had selected B.
+  let releaseFirst;
+  const firstKey = new Promise((resolve) => {
+    releaseFirst = resolve;
+  });
+  let calls = 0;
+  const resolver = createTokenResolver({
+    resolveKey: async () => {
+      calls += 1;
+      if (calls === 1) return firstKey;
+      return `fk-ambient-${"c".repeat(40)}`;
+    },
+    activeKey: () => activeKey,
+  });
+  let activeKey;
+
+  const stale = resolver.resolve(); // starts, blocks on the pending ambient key
+  await new Promise((r) => setTimeout(r, 0));
+
+  activeKey = `fk-selected-${"d".repeat(40)}`;
+  resolver.reset();
+  assert.equal((await resolver.resolve()).token, activeKey, "the new selection wins");
+
+  releaseFirst(`fk-ambient-${"c".repeat(40)}`); // the stale task finishes late
+  const afterStale = await stale;
+  assert.equal(afterStale.source, "switched", "the stale task reports itself stale");
+  assert.equal((await resolver.resolve()).token, activeKey, "the stale key did not come back");
+});
+
+test("credentials: the last selection always wins across interleaved switches", async () => {
+  let activeKey = `fk-first-${"e".repeat(40)}`;
+  const resolver = createTokenResolver({ activeKey: () => activeKey });
+  assert.equal((await resolver.resolve()).token, activeKey);
+
+  activeKey = `fk-second-${"f".repeat(40)}`;
+  resolver.reset();
+  assert.equal((await resolver.resolve()).token, activeKey);
+
+  activeKey = undefined;
+  resolver.reset();
+  assert.equal((await resolver.resolve()).source, "none");
+
+  activeKey = `fk-third-${"g".repeat(40)}`;
+  resolver.reset();
+  assert.equal((await resolver.resolve()).token, activeKey);
+});
+
+test("sanitize: block-shaped system content keeps the caller's rules", () => {
+  const parsed = {
+    messages: [{ role: "system", content: [{ type: "text", text: "REQUIRED ORIGINAL RULE" }] }],
+  };
+  normalizeGenericPayload(parsed);
+  const content = parsed.messages[0].content;
+  assert.ok(Array.isArray(content), "block content stays block content");
+  assert.ok(
+    content.some((block) => block.text === "REQUIRED ORIGINAL RULE"),
+    "the original rule survives",
+  );
+  assert.ok(
+    content.some((block) => block.text?.startsWith("You are Droid")),
+    "the identity line is present",
+  );
+
+  // Idempotent: sanitizing twice does not stack identity lines.
+  normalizeGenericPayload(parsed);
+  const count = JSON.stringify(parsed).split("You are Droid").length - 1;
+  assert.equal(count, 1, "the identity line is injected once");
+});
+
+test("sanitize: an empty anthropic system still gets the identity line", () => {
+  for (const value of ["", null, undefined, []]) {
+    const parsed = { messages: [] };
+    if (value !== undefined) parsed.system = value;
+    sanitizeAnthropicPayload(parsed);
+    assert.ok(
+      JSON.stringify(parsed.system).includes("You are Droid"),
+      `system ${JSON.stringify(value)} carries the identity line`,
+    );
+  }
+});
+
+test("accounts: two keys with the same label never collide", async (t) => {
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-ids-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+  await withEnv({ DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined }, async () => {
+    const realNow = Date.now;
+    Date.now = () => 12345; // same millisecond for both saves
+    try {
+      const first = saveApiKeyAccount({ label: "same", key: `fk-one-${"h".repeat(40)}` });
+      const second = saveApiKeyAccount({ label: "same", key: `fk-two-${"i".repeat(40)}` });
+      assert.notEqual(first.id, second.id, "the two keys get their own ids");
+      assert.equal(listAccounts().length, 2, "both entries survive");
+    } finally {
+      Date.now = realNow;
+    }
+  });
+});
+
+test("accounts: a widened key file is tightened on the next save", async (t) => {
+  if (process.platform === "win32") return; // mode bits are not the guard there
+  const vault = fs.mkdtempSync(path.join(os.tmpdir(), "factory-mode-"));
+  t.after(() => fs.rmSync(vault, { recursive: true, force: true }));
+  const key = `fk-mode-${"j".repeat(40)}`;
+  await withEnv({ DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined }, async () => {
+    const saved = saveApiKeyAccount({ label: "mode", key });
+    const file = path.join(vault, saved.id, "api-key");
+    fs.chmodSync(file, 0o644);
+    saveApiKeyAccount({ label: "mode", key });
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600, "the key file is 0600 again");
+    assert.equal(fs.statSync(path.join(vault, saved.id)).mode & 0o777, 0o700, "the dir is 0700");
+  });
+});
+
+test("accounts: a traversing active id reads nothing outside the vault", async (t) => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "factory-active-"));
+  const vault = path.join(parent, "accounts");
+  fs.mkdirSync(vault, { recursive: true });
+  const outside = path.join(parent, "outside");
+  fs.mkdirSync(outside, { recursive: true });
+  fs.writeFileSync(path.join(outside, "api-key"), `fk-outside-${"k".repeat(40)}`);
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+
+  await withEnv({ DSH_FACTORY_ACCOUNTS_DIR: vault, FACTORY_API_KEY: undefined }, async () => {
+    for (const bad of ["../outside", "/etc", "..\\outside", ""]) {
+      fs.writeFileSync(path.join(vault, "active.json"), JSON.stringify({ activeId: bad }));
+      assert.equal(getActiveAccountId(), undefined, `active id ${JSON.stringify(bad)} is rejected`);
+      assert.equal(activeApiKey(), undefined, "no key is read from outside the vault");
+    }
+    fs.writeFileSync(path.join(vault, "active.json"), "{ not json");
+    assert.equal(activeApiKey(), undefined, "malformed state reads as no credential");
+  });
+});
+
+test("gateway: /models does not advertise region-gated ids", async (t) => {
+  const gateway = await startGateway(t, { upstreamBaseURL: "http://127.0.0.1:1/unused" });
+  const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/a/v1/models`);
+  const body = await res.json();
+  const ids = body.data.map((m) => m.id);
+  assert.ok(ids.length > 0, "the route still lists models");
+  assert.ok(!ids.includes("claude-opus-5-fast"), "a region-gated id is not advertised");
+  assert.ok(ids.includes("claude-opus-5"), "its ungated sibling still is");
+});
+
+test("gateway: a client disconnect cancels the upstream stream", async (t) => {
+  // The handler listened on req "close", but the request body is already read by
+  // then, so cancelling the response left the upstream generating.
+  const upstream = http.createServer((req, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    const timer = setInterval(() => res.write("data: chunk\n\n"), 5);
+    res.on("close", () => {
+      clearInterval(timer);
+      upstream.cancelled = true;
+    });
+  });
+  await new Promise((resolve) => upstream.listen(0, resolve));
+  t.after(() => upstream.close());
+
+  const gateway = await startGateway(t, { upstreamBaseURL: `http://127.0.0.1:${upstream.address().port}` });
+  await withEnv({ FACTORY_API_KEY: `fk-disconnect-${"m".repeat(40)}` }, async () => {
+    const controller = new AbortController();
+    const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/o/v1/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({ model: "glm-5.3-flash", messages: [{ role: "user", content: "hi" }], stream: true }),
+    });
+    assert.equal(res.status, 200, "the request reached the upstream");
+    const reader = res.body.getReader();
+    await reader.read();
+    controller.abort();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(upstream.cancelled, true, "the upstream request was cancelled");
+  });
 });
