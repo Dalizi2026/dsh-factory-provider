@@ -274,7 +274,7 @@ key 存在 `~/.dsh-factory-provider/accounts/<id>/api-key`（Windows 是 `%USERP
 ## 开发
 
 ```sh
-node test/run.mjs     # 63 项离线测试，不需要网络、不需要 API key
+node test/run.mjs     # 65 项离线测试，不需要网络、不需要 API key
 ```
 
 测试覆盖：API key 账号库与权限、凭据解析与切换竞态、请求净化规则、模型目录、桥接路由的回环守卫、设置生命周期与卸载回滚、网关端到端（本地 mock 上游，含 SSE 流式、断连取消与 401 重试）。全部离线，不需要网络、API key 或 droid CLI。

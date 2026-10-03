@@ -1983,3 +1983,76 @@ test("gateway: a client disconnect cancels the upstream stream", async (t) => {
     assert.equal(upstream.cancelled, true, "the upstream request was cancelled");
   });
 });
+
+// --- regression: model counts agree, and a startup race is retried ----------------
+
+test("gateway: /status counts exactly what /models lists", async (t) => {
+  // /status counted the raw catalog, so it advertised 13 Claude models while
+  // /models and the provider entries both served 10 — the same region-gate
+  // filter applied in two places out of three.
+  const gateway = await startGateway(t, {
+    upstreamBaseURL: "http://127.0.0.1:1/unused",
+    enabledRoutes: ["anthropic", "generic", "openai"],
+  });
+  const status = await (await fetch(`${gateway.baseURL}/api/dsh-factory-provider/status`)).json();
+  for (const [route, sub] of [["anthropic", "a"], ["generic", "o"], ["openai", "openai"]]) {
+    const models = await (await fetch(`${gateway.baseURL}/api/dsh-factory-provider/${sub}/v1/models`)).json();
+    assert.equal(
+      status.routes[route].models,
+      models.data.length,
+      `${route}: /status and /models agree`,
+    );
+  }
+  const anthropic = await (await fetch(`${gateway.baseURL}/api/dsh-factory-provider/a/v1/models`)).json();
+  assert.ok(
+    !anthropic.data.some((m) => m.id === "claude-opus-5-fast"),
+    "a region-gated id is in neither list",
+  );
+  assert.equal(status.routes.anthropic.models, buildModelEntries("anthropic").length, "and matches the provider entries");
+});
+
+test("settings: a service that is still starting up is retried, not reported as failed", async (t) => {
+  // At startup the settings write can fail with "cannot get required service
+  // \"loader\" in inactive context". That was classified as a hard failure, so
+  // the first reconcile gave up instead of retrying.
+  let mutations = 0;
+  const settings = makeSettingsMock();
+  const failing = settings.mutate;
+  settings.mutate = async (ns, batch) => {
+    mutations += 1;
+    if (mutations === 1) throw new Error('cannot get required service "loader" in inactive context');
+    return failing(ns, batch);
+  };
+
+  const handlers = new Map();
+  const sctx = {
+    webServer: {
+      port: 19387,
+      register: (route) => {
+        handlers.set(route.path, route.handler);
+        return () => handlers.delete(route.path);
+      },
+    },
+    settings,
+    effect: (fn) => { fn(); return () => {}; },
+    on: () => () => {},
+  };
+  const ctx = {
+    logger: { info: () => {}, warn: () => {} },
+    get: () => undefined,
+    emit: () => {},
+    inject: (_services, callback) => callback(sctx),
+  };
+
+  settings.state.source = { enabled: true, proactiveRefreshMinutes: 0 };
+  apply(ctx, settings.state.source);
+  // A service-not-ready race waits a full second before retrying, so this has
+  // to outlast that delay rather than just a few ticks.
+  await new Promise((resolve) => setTimeout(resolve, 1600));
+
+  assert.ok(mutations >= 2, `the write was retried (${mutations} attempts)`);
+  const status = await invokeRoute(handlers, "/api/dsh-factory-provider/status");
+  const parsed = JSON.parse(status.body);
+  assert.equal(parsed.plugin.reconcile, "applied", "the retry succeeded");
+  assert.equal(parsed.plugin.error, undefined, "no failure is reported");
+});
