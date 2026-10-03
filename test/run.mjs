@@ -834,14 +834,23 @@ test("gateway: journal records the forwarded request shape and upstream status",
     await readAll(res);
   });
   const entries = readJournal(10);
-  const entry = entries[entries.length - 1];
+  // The forward record is no longer last: a usage record follows once the
+  // stream ends. Find it by event rather than by position.
+  const entry = entries.filter((e) => e.event === "forward").at(-1);
   assert.equal(entry.route, "generic");
-  assert.equal(entry.event, "forward");
   assert.equal(entry.upstreamStatus, 200);
   assert.equal(entry.shape.model, "glm-5.3-flash");
   assert.equal(entry.shape.tools, 1);
+  assert.equal(typeof entry.requestId, "string", "records carry a request id");
   // No tokens or full bodies in the journal.
   assert.ok(!JSON.stringify(entry).includes("Bearer"));
+
+  // The usage record shares that id and carries the accounting.
+  const usage = entries.filter((e) => e.event === "usage").at(-1);
+  assert.equal(usage.requestId, entry.requestId, "usage belongs to the same request");
+  assert.ok(usage.totalInput === null || typeof usage.totalInput === "number");
+  assert.ok(usage.hitRatio === null || (usage.hitRatio >= 0 && usage.hitRatio <= 1));
+  assert.ok(!JSON.stringify(usage).includes("Bearer"));
 });
 
 test("gateway: status and models routes report state and the catalog", async (t) => {
@@ -2257,25 +2266,55 @@ test("cache: empty and missing shapes are handled without throwing", () => {
   assert.equal(report.warnings.length, 1);
 });
 
-test("cache: the fingerprint is stable for equal input and diverges where it should", () => {
+test("cache: the fingerprint separates serialization order from content", () => {
   const hash = (value) => createHash("sha256").update(value).digest("hex");
+  const fp = (payload) => fingerprintAnthropicPayload(payload, hash);
   const base = { system: [textBlock("SYS")], messages: [{ role: "user", content: [textBlock("a")] }] };
+
   const same = JSON.parse(JSON.stringify(base));
+  assert.deepEqual(fp(same), fp(base), "identical input, identical fingerprint");
+
   const grown = JSON.parse(JSON.stringify(base));
   grown.messages.push({ role: "assistant", content: [textBlock("b")] });
+  assert.deepEqual(fp(grown).messages.raw.slice(0, 1), fp(base).messages.raw, "appending keeps the earlier prefix");
+
   const changed = JSON.parse(JSON.stringify(base));
   changed.messages[0].content[0].text = "A";
+  assert.notEqual(fp(changed).messages.raw[0], fp(base).messages.raw[0], "changed text shows up at its index");
 
-  const f1 = fingerprintAnthropicPayload(base, hash);
-  const f2 = fingerprintAnthropicPayload(same, hash);
-  const f3 = fingerprintAnthropicPayload(grown, hash);
-  const f4 = fingerprintAnthropicPayload(changed, hash);
+  // Key order only: raw moves, structural does not.
+  const reordered = { messages: [{ content: [textBlock("a")], role: "user" }], system: [textBlock("SYS")] };
+  const a = fp(base);
+  const b = fp(reordered);
+  assert.notEqual(a.messages.raw[0], b.messages.raw[0], "raw sees the reordering");
+  assert.equal(a.messages.structural[0], b.messages.structural[0], "structural does not");
 
-  assert.deepEqual(f1, f2, "identical input, identical fingerprint");
-  assert.deepEqual(f3.messages.slice(0, 1), f1.messages, "appending keeps the earlier prefix");
-  assert.notEqual(f4.messages[0], f1.messages[0], "a changed message shows up at its index");
-  assert.equal(f1.system, f2.system);
+  // A marker moving is metadata, not content.
+  const marked = JSON.parse(JSON.stringify(base));
+  marked.messages[0].content[0].cache_control = EPHEMERAL;
+  assert.deepEqual(fp(marked), fp(base), "moving a marker changes nothing");
+
+  // A business field that happens to be called cache_control IS content.
+  const business = { messages: [{ role: "assistant", content: [{ type: "tool_use", id: "t1", name: "x", input: { cache_control: "old" } }] }] };
+  const businessChanged = JSON.parse(JSON.stringify(business));
+  businessChanged.messages[0].content[0].input.cache_control = "new";
+  assert.notEqual(
+    fp(business).messages.raw[0],
+    fp(businessChanged).messages.raw[0],
+    "a tool input field of that name is content, not a marker",
+  );
+
+  const schema = { tools: [{ name: "x", input_schema: { properties: { cache_control: { type: "string" } } } }], messages: [] };
+  const schemaChanged = JSON.parse(JSON.stringify(schema));
+  schemaChanged.tools[0].input_schema.properties.cache_control.type = "number";
+  assert.notEqual(fp(schema).tools.raw, fp(schemaChanged).tools.raw, "and neither is a schema property");
+
+  // The snapshot must not touch the caller payload.
+  const before = JSON.stringify(base);
+  fp(base);
+  assert.equal(JSON.stringify(base), before, "fingerprinting does not mutate its input");
 });
+
 
 test("cache: only the anthropic route gains markers", async (t) => {
   const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, [{ choices: [{ delta: { content: "ok" } }] }]));
@@ -2293,5 +2332,54 @@ test("cache: only the anthropic route gains markers", async (t) => {
     );
     const sent = upstream.seen.at(-1);
     assert.equal(markerCount(sent.body), 0, "the generic route is untouched");
+  });
+});
+
+test("gateway: usage is collected from a streamed reply without buffering it", async (t) => {
+  // Anthropic reports usage across message_start and message_delta, and a chunk
+  // boundary can fall inside an event. The observer must merge fields (not sum
+  // cumulative repeats) and still pass every byte through unchanged.
+  const events = [
+    `event: message_start\ndata: ${JSON.stringify({ type: "message_start", message: { usage: { input_tokens: 12, cache_read_input_tokens: 5000, cache_creation_input_tokens: 300 } } })}\n\n`,
+    `event: content_block_delta\ndata: ${JSON.stringify({ type: "content_block_delta", delta: { text: "hi" } })}\n\n`,
+    `event: message_delta\ndata: ${JSON.stringify({ type: "message_delta", usage: { output_tokens: 7, input_tokens: 12, cache_read_input_tokens: 5000, cache_creation_input_tokens: 300 } })}\n\n`,
+  ];
+  const upstream = await startMockUpstream(t, (_record, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    // Deliberately split one event across two writes.
+    const whole = events.join("");
+    const cut = Math.floor(whole.length / 2);
+    res.write(whole.slice(0, cut));
+    setTimeout(() => {
+      res.write(whole.slice(cut));
+      res.end();
+    }, 5);
+  });
+  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, enabledRoutes: ["anthropic"] });
+  await withEnv({ FACTORY_API_KEY: `fk-usage-${"p".repeat(40)}` }, async () => {
+    const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/a/v1/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 16,
+        stream: true,
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    });
+    const body = await readAll(res);
+    assert.equal(res.status, 200);
+    assert.match(body.toString(), /message_start/, "the stream still reaches the client");
+    assert.match(body.toString(), /content_block_delta/);
+
+    // Give the observer's flush a tick to land.
+    await new Promise((r) => setTimeout(r, 50));
+    const usage = readJournal(20).filter((e) => e.event === "usage").at(-1);
+    assert.equal(usage.input, 12, "input is not double counted");
+    assert.equal(usage.read, 5000);
+    assert.equal(usage.write, 300);
+    assert.equal(usage.output, 7);
+    assert.equal(usage.totalInput, 12 + 5000 + 300);
+    assert.ok(Math.abs(usage.hitRatio - 5000 / 5312) < 0.001, "hit ratio is read / total input");
   });
 });
