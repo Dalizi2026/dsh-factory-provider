@@ -1,6 +1,6 @@
 {
   "name": "dsh-factory-provider",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Factory (Droid) Pro subscription as native DSH LLM providers — authenticates with your own Factory API key through a loopback gateway, with a settings page for status, quota, key switching, and diagnostics. · 把 Factory Droid 订阅额度接入 DSH：API key + 回环网关 + 设置页（连接状态/多 key 切换/订阅额度/路由模型/配置/诊断日志）。",
   "type": "module",
   "main": "lib/index.js",
@@ -17,9 +17,6 @@
   "license": "MIT",
   "engines": {
     "node": ">=20"
-  },
-  "dependencies": {
-    "@deepseek-ai/schemastery": "^3.18.1"
   },
   "dsh": {
     "bundle": {
@@ -50,7 +47,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/dsh-factory/dsh-factory-provider"
+    "url": "git+https://github.com/Dalizi2026/dsh-factory-provider.git"
   },
-  "homepage": "https://github.com/dsh-factory/dsh-factory-provider#readme"
+  "homepage": "https://github.com/Dalizi2026/dsh-factory-provider#readme",
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "^3.18.2"
+  }
 }
