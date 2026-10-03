@@ -15,6 +15,7 @@
 // whatever host the developer had running.
 process.env.DSH_FACTORY_JOURNAL = path.join(os.tmpdir(), `dsh-factory-test-journal-${process.pid}.jsonl`);
 
+import { createHash } from "node:crypto";
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -50,6 +51,7 @@ import {
   buildProviderEntry,
 } from "../lib/catalog.js";
 import { createGateway } from "../lib/gateway.js";
+import { applyAnthropicCacheBreakpoints, fingerprintAnthropicPayload } from "../lib/cache.js";
 import { apply, Config } from "../lib/index.js";
 import { journal, readJournal } from "../lib/journal.js";
 import { fetchQuota } from "../lib/quota.js";
@@ -740,10 +742,18 @@ test("gateway: anthropic route injects credential/headers, rewrites body, stream
     // skills beta dropped (no code_execution tool), fast-mode beta added, speed set
     assert.equal(sent.headers["anthropic-beta"], "fast-mode-2026-02-01");
     assert.equal(sent.body.speed, "fast");
-    // top-level system passes through with the canonical line first
-    assert.equal(sent.body.system, `${DROID_SYSTEM_LINE}\n\nSYSTEM`);
+    // Top-level system passes through with the canonical line first. It is now
+    // a block array because the cache layer needs somewhere legal to put a
+    // breakpoint; the text itself is unchanged.
+    const systemText = Array.isArray(sent.body.system)
+      ? sent.body.system.map((b) => b.text).join("")
+      : sent.body.system;
+    assert.equal(systemText, `${DROID_SYSTEM_LINE}\n\nSYSTEM`);
     assert.equal(sent.body.messages.length, 1);
-    assert.equal(sent.body.messages[0].content, "hello");
+    const firstText = Array.isArray(sent.body.messages[0].content)
+      ? sent.body.messages[0].content.map((b) => b.text ?? "").join("")
+      : sent.body.messages[0].content;
+    assert.equal(firstText, "hello");
   });
 });
 
@@ -2055,4 +2065,233 @@ test("settings: a service that is still starting up is retried, not reported as 
   const parsed = JSON.parse(status.body);
   assert.equal(parsed.plugin.reconcile, "applied", "the retry succeeded");
   assert.equal(parsed.plugin.error, undefined, "no failure is reported");
+});
+
+// --- anthropic prompt-cache breakpoints ------------------------------------------
+
+const EPHEMERAL = { type: "ephemeral" };
+const EPHEMERAL_1H = { type: "ephemeral", ttl: "1h" };
+const textBlock = (text, extra = {}) => ({ type: "text", text, ...extra });
+
+function markerCount(parsed) {
+  let count = 0;
+  if (parsed.cache_control !== undefined) count += 1;
+  for (const tool of parsed.tools ?? []) if (tool?.cache_control !== undefined) count += 1;
+  for (const block of Array.isArray(parsed.system) ? parsed.system : []) {
+    if (block?.cache_control !== undefined) count += 1;
+  }
+  for (const message of parsed.messages ?? []) {
+    for (const block of Array.isArray(message?.content) ? message.content : []) {
+      if (block?.cache_control !== undefined) count += 1;
+    }
+  }
+  return count;
+}
+
+test("cache: auto places breakpoints on tools, system and the newest message", () => {
+  const parsed = {
+    tools: [{ name: "read" }, { name: "write" }],
+    system: [textBlock("SYS")],
+    messages: [{ role: "user", content: [textBlock("hi")] }],
+  };
+  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "auto", ttl: "5m" });
+  assert.equal(report.source, "proxy");
+  assert.equal(report.breakpoints, 3);
+  assert.deepEqual(parsed.tools[1].cache_control, EPHEMERAL);
+  assert.deepEqual(parsed.system[0].cache_control, EPHEMERAL);
+  assert.deepEqual(parsed.messages[0].content[0].cache_control, EPHEMERAL);
+  assert.ok(markerCount(parsed) <= 4, "within the 4-block limit");
+});
+
+test("cache: auto leaves a client that already manages caching alone", () => {
+  const parsed = {
+    system: [textBlock("SYS", { cache_control: EPHEMERAL })],
+    messages: [{ role: "user", content: [textBlock("hi", { cache_control: EPHEMERAL })] }],
+  };
+  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "auto" });
+  assert.equal(report.source, "client");
+  assert.equal(report.breakpoints, 2);
+  assert.equal(markerCount(parsed), 2, "nothing was added");
+});
+
+test("cache: passthrough changes nothing at all", () => {
+  const parsed = {
+    system: [textBlock("SYS")],
+    messages: [{ role: "user", content: [textBlock("hi")] }],
+  };
+  const before = JSON.stringify(parsed);
+  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "passthrough" });
+  assert.equal(JSON.stringify(parsed), before);
+  assert.equal(report.breakpoints, 0);
+  assert.equal(report.source, "none");
+});
+
+test("cache: rewrite replaces client placement instead of adding to it", () => {
+  const parsed = {
+    system: [textBlock("SYS", { cache_control: EPHEMERAL })],
+    messages: [
+      { role: "user", content: [textBlock("old", { cache_control: EPHEMERAL })] },
+      { role: "user", content: [textBlock("new")] },
+    ],
+  };
+  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
+  assert.equal(report.source, "proxy");
+  assert.ok(markerCount(parsed) <= 4);
+  assert.equal(parsed.messages[0].content[0].cache_control, undefined, "the stale marker is gone");
+  assert.deepEqual(parsed.messages[1].content[0].cache_control, EPHEMERAL, "the newest message is marked");
+});
+
+test("cache: a field named cache_control inside tool input is never touched", () => {
+  // The trap: tool inputs, JSON schemas and user data may legitimately contain
+  // a property with this name. Only the known outer surfaces may be edited.
+  const parsed = {
+    tools: [
+      {
+        name: "configure",
+        input_schema: { type: "object", properties: { cache_control: { type: "string" } } },
+      },
+    ],
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "tool_result", tool_use_id: "toolu_1", content: [{ type: "text", text: "ok" }] },
+          { type: "text", text: "data", cache_control: EPHEMERAL },
+        ],
+      },
+    ],
+  };
+  applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
+  assert.deepEqual(
+    parsed.tools[0].input_schema.properties.cache_control,
+    { type: "string" },
+    "the schema property survives",
+  );
+  assert.equal(parsed.messages[0].content[0].tool_use_id, "toolu_1");
+});
+
+test("cache: running twice produces the same request", () => {
+  const build = () => ({
+    tools: [{ name: "read" }],
+    system: [textBlock("SYS")],
+    messages: [{ role: "user", content: [textBlock("hi")] }],
+  });
+  const once = build();
+  applyAnthropicCacheBreakpoints(once, { mode: "rewrite" });
+  const twice = build();
+  applyAnthropicCacheBreakpoints(twice, { mode: "rewrite" });
+  applyAnthropicCacheBreakpoints(twice, { mode: "rewrite" });
+  assert.equal(JSON.stringify(twice), JSON.stringify(once), "idempotent");
+  assert.ok(markerCount(twice) <= 4);
+});
+
+test("cache: string system and string message content are upgraded without loss", () => {
+  const parsed = { system: "SYS", messages: [{ role: "user", content: "hello" }] };
+  applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
+  assert.equal(parsed.system[0].text, "SYS");
+  assert.equal(parsed.messages[0].content[0].text, "hello");
+  assert.deepEqual(parsed.messages[0].content[0].cache_control, EPHEMERAL);
+});
+
+test("cache: the session key is identical before and after the rewrite", () => {
+  // Upgrading a string to a block array must not change the derived session id,
+  // or cache affinity would break in a way no marker can repair.
+  const before = { model: "m", system: "SYS", messages: [{ role: "user", content: "hello" }] };
+  const after = JSON.parse(JSON.stringify(before));
+  applyAnthropicCacheBreakpoints(after, { mode: "rewrite" });
+  assert.deepEqual(
+    sessionKeyParts("anthropic", after),
+    sessionKeyParts("anthropic", before),
+    "sessionKeyParts is unchanged",
+  );
+});
+
+test("cache: an existing ttl is not overwritten", () => {
+  const parsed = {
+    messages: [{ role: "user", content: [textBlock("hi", { cache_control: EPHEMERAL_1H })] }],
+  };
+  applyAnthropicCacheBreakpoints(parsed, { mode: "auto", ttl: "5m" });
+  assert.deepEqual(parsed.messages[0].content[0].cache_control, EPHEMERAL_1H, "client ttl wins");
+});
+
+test("cache: the 1h ttl is applied when asked for", () => {
+  const parsed = { system: [textBlock("SYS")], messages: [{ role: "user", content: [textBlock("hi")] }] };
+  const report = applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite", ttl: "1h" });
+  assert.deepEqual(parsed.system[0].cache_control, EPHEMERAL_1H);
+  assert.deepEqual(report.ttlSummary, { "1h": 2 });
+});
+
+test("cache: thinking, empty text and unknown blocks never carry a marker", () => {
+  const parsed = {
+    messages: [
+      {
+        role: "assistant",
+        content: [
+          { type: "thinking", thinking: "…" },
+          { type: "redacted_thinking", data: "…" },
+          textBlock(""),
+          { type: "image", source: {} },
+        ],
+      },
+      { role: "user", content: [textBlock("real")] },
+    ],
+  };
+  applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
+  assert.equal(parsed.messages[0].content[0].cache_control, undefined);
+  assert.equal(parsed.messages[0].content[1].cache_control, undefined);
+  assert.equal(parsed.messages[0].content[2].cache_control, undefined);
+  assert.deepEqual(parsed.messages[1].content[0].cache_control, EPHEMERAL);
+});
+
+test("cache: empty and missing shapes are handled without throwing", () => {
+  for (const parsed of [{}, { messages: [] }, { system: [] }, { messages: [{ role: "user", content: [] }] }]) {
+    const report = applyAnthropicCacheBreakpoints(parsed, { mode: "rewrite" });
+    assert.ok(markerCount(parsed) <= 4);
+    assert.equal(typeof report.breakpoints, "number");
+  }
+  assert.doesNotThrow(() => applyAnthropicCacheBreakpoints(undefined, { mode: "auto" }));
+  const unknown = { messages: [{ role: "user", content: [textBlock("hi")] }] };
+  const before = JSON.stringify(unknown);
+  const report = applyAnthropicCacheBreakpoints(unknown, { mode: "nonsense" });
+  assert.equal(JSON.stringify(unknown), before, "an unknown mode changes nothing");
+  assert.equal(report.warnings.length, 1);
+});
+
+test("cache: the fingerprint is stable for equal input and diverges where it should", () => {
+  const hash = (value) => createHash("sha256").update(value).digest("hex");
+  const base = { system: [textBlock("SYS")], messages: [{ role: "user", content: [textBlock("a")] }] };
+  const same = JSON.parse(JSON.stringify(base));
+  const grown = JSON.parse(JSON.stringify(base));
+  grown.messages.push({ role: "assistant", content: [textBlock("b")] });
+  const changed = JSON.parse(JSON.stringify(base));
+  changed.messages[0].content[0].text = "A";
+
+  const f1 = fingerprintAnthropicPayload(base, hash);
+  const f2 = fingerprintAnthropicPayload(same, hash);
+  const f3 = fingerprintAnthropicPayload(grown, hash);
+  const f4 = fingerprintAnthropicPayload(changed, hash);
+
+  assert.deepEqual(f1, f2, "identical input, identical fingerprint");
+  assert.deepEqual(f3.messages.slice(0, 1), f1.messages, "appending keeps the earlier prefix");
+  assert.notEqual(f4.messages[0], f1.messages[0], "a changed message shows up at its index");
+  assert.equal(f1.system, f2.system);
+});
+
+test("cache: only the anthropic route gains markers", async (t) => {
+  const upstream = await startMockUpstream(t, (_record, res) => sseReply(res, [{ choices: [{ delta: { content: "ok" } }] }]));
+  const gateway = await startGateway(t, {
+    upstreamBaseURL: upstream.baseURL,
+    enabledRoutes: ["generic", "anthropic"],
+  });
+  await withEnv({ FACTORY_API_KEY: `fk-cache-${"n".repeat(40)}` }, async () => {
+    await readAll(
+      await fetch(`${gateway.baseURL}/api/dsh-factory-provider/o/v1/chat/completions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ model: "glm-5.3-flash", messages: [{ role: "user", content: "hi" }] }),
+      }),
+    );
+    const sent = upstream.seen.at(-1);
+    assert.equal(markerCount(sent.body), 0, "the generic route is untouched");
+  });
 });

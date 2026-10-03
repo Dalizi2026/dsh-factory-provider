@@ -1,6 +1,6 @@
 {
   "name": "dsh-factory-provider",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Factory (Droid) Pro subscription as native DSH LLM providers — authenticates with your own Factory API key through a loopback gateway, with a settings page for status, quota, key switching, and diagnostics. · 把 Factory Droid 订阅额度接入 DSH：API key + 回环网关 + 设置页（连接状态/多 key 切换/订阅额度/路由模型/配置/诊断日志）。",
   "type": "module",
   "main": "lib/index.js",
