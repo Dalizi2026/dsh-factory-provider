@@ -11,6 +11,7 @@
 ## 目录
 
 - [它做什么](#它做什么)
+- [支持的 DSH 版本](#支持的-dsh-版本)
 - [使用流程](#使用流程)
   - [第 1 步：拿一个 Factory API key](#第-1-步拿一个-factory-api-key)
   - [第 2 步：安装插件](#第-2-步安装插件)
@@ -50,6 +51,43 @@ Factory 推理服务（prem.factory.ai）
 | `factory-g` | GLM / Kimi / MiniMax / DeepSeek 等 | **Core 池模型**（倍率低，但**同样先扣标准额度**） |
 | `factory-a` | Claude 全系（Opus / Sonnet / Fable） | 标准订阅额度 |
 | `factory-o` | GPT / Codex 系 | 标准订阅额度 |
+
+---
+
+## 支持的 DSH 版本
+
+| | |
+| --- | --- |
+| **已验证** | DeepSeek Harness **0.2.0-rc.2**（macOS 桌面版，实测通过） |
+| 更早版本 | **未测试** —— 接口可能不存在，见下表 |
+| 更新版本 | **未测试** —— 若接口有变动，插件会记日志而不是静默失败 |
+
+查自己的版本：
+
+```sh
+dsh --version
+```
+
+### 插件依赖的 DSH 接口
+
+这些是插件与 DSH 的接触面。缺哪个，对应功能就失效 —— 插件会在日志里写明原因，不会静默出错。
+
+| 接口 | 用途 | 缺失时的表现 |
+| --- | --- | --- |
+| `ctx.inject(["webServer", "settings"])` | 取得 web 端口与设置服务 | 插件不注册任何路由，日志：`webServer/port unavailable` |
+| `webServer.register(route)` | 注册回环网关与设置页接口 | 同上 |
+| `settings.installSection(ctx, ns, schema, entry, hooks)` | 注册设置页 | 自动降级到 `settings.register` |
+| `settings.describe()` / `settings.mutate(ns, ops, revision)` | 写入 provider 配置 | provider 写不进去 → 模型列表为空，日志：`provider reconcile failed` |
+| schemastery 的 `.volatile()` | 让设置项可写 | 保存设置报 `has no volatile fields` |
+| `ctx.emit("loader/volatile-update")` | 通知 DSH 重建模型目录 | 模型能用，但选择器可能要重启才刷新 |
+
+### 怎么确认在你的版本上正常
+
+1. 装好并重启 DSH
+2. 打开 **设置 → Factory (Droid)**，看「连接状态」徽标是不是 **API key**
+3. 点 **测试连接** —— 返回 200 就说明从 DSH 到 Factory 整条链路通了
+
+任何一步不对，先看插件目录下的 `journal.jsonl`（最后几行会写明是哪一步失败）。
 
 ---
 
