@@ -20,3 +20,21 @@
           - generic
           - anthropic
           - openai
+        # Anthropic needs explicit cache breakpoints (measured 0% -> 99% once
+        # placed). auto leaves a client that manages its own caching alone;
+        # rewrite takes over placement; passthrough changes nothing.
+        anthropicCacheMode: auto
+        anthropicCacheTTL: 5m
+        # CLI 0.233.0 model budgets; the two 5.5 models use the selected 400K threshold.
+        factoryContextAlignment: true
+        factoryRequestRecovery: true
+        factoryAdaptiveImages: true
+        factoryRequestMaxBytes: 4194304
+        opus55CompactionTokens: 400000
+        sonnet55CompactionTokens: 400000
+        # Claude summary optimization. The 16K margin applies to summary
+        # capacity checks and compatibility fallback, not CLI budgets twice.
+        anthropicContextOptimization: true
+        anthropicCompactionHeadroomTokens: 16384
+        anthropicSummaryMaxTokens: 16384
+        anthropicSummaryModel: factory-g/glm-5.3-flash

@@ -1,0 +1,355 @@
+{
+  "version": "0.233.0",
+  "source": "https://registry.npmjs.org/@factory/cli-darwin-arm64/-/cli-darwin-arm64-0.233.0.tgz",
+  "binarySHA256": "352c8b138511060c1fdd5b750570c591dfd1f18659c441efa4f041124b1a7fe9",
+  "models": [
+    {
+      "id": "claude-opus-5-5",
+      "provider": "factory-a",
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 1000000
+    },
+    {
+      "id": "claude-opus-5-5-fast",
+      "provider": "factory-a",
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 1000000
+    },
+    {
+      "id": "claude-opus-4-8",
+      "provider": "factory-a",
+      "maxInputTokens": 867000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 995000
+    },
+    {
+      "id": "claude-opus-4-8-fast",
+      "provider": "factory-a",
+      "maxInputTokens": 867000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 995000
+    },
+    {
+      "id": "claude-opus-5",
+      "provider": "factory-a",
+      "maxInputTokens": 867000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 995000
+    },
+    {
+      "id": "claude-opus-5-fast",
+      "provider": "factory-a",
+      "maxInputTokens": 867000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 995000
+    },
+    {
+      "id": "claude-opus-4-7",
+      "provider": "factory-a",
+      "maxInputTokens": 867000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 995000
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "provider": "factory-a",
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 1000000
+    },
+    {
+      "id": "claude-sonnet-5",
+      "provider": "factory-a",
+      "maxInputTokens": 872000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 1000000
+    },
+    {
+      "id": "claude-sonnet-4-6",
+      "provider": "factory-a",
+      "maxInputTokens": 931000,
+      "maxOutputTokens": 64000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 995000
+    },
+    {
+      "id": "claude-fable-5.1",
+      "provider": "factory-a",
+      "maxInputTokens": 867000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 995000
+    },
+    {
+      "id": "claude-fable-5",
+      "provider": "factory-a",
+      "maxInputTokens": 867000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": null,
+      "budgetSum": 995000
+    },
+    {
+      "id": "claude-haiku-4-5-20251001",
+      "provider": "factory-a",
+      "maxInputTokens": 180000,
+      "maxOutputTokens": 32000,
+      "threshold": 180000,
+      "explicitTotal": null,
+      "budgetSum": 212000,
+      "perEffort": {
+        "off": 180000,
+        "low": 153904,
+        "medium": 145712,
+        "high": 133424
+      }
+    },
+    {
+      "id": "glm-5.3-flash",
+      "provider": "factory-g",
+      "maxInputTokens": 917504,
+      "maxOutputTokens": 131072,
+      "threshold": 250000,
+      "explicitTotal": 1048576,
+      "budgetSum": 1048576
+    },
+    {
+      "id": "inkling",
+      "provider": "factory-g",
+      "maxInputTokens": 1007232,
+      "maxOutputTokens": 32768,
+      "threshold": 250000,
+      "explicitTotal": 1040000,
+      "budgetSum": 1040000
+    },
+    {
+      "id": "qwen3.8-max",
+      "provider": "factory-g",
+      "maxInputTokens": 131072,
+      "maxOutputTokens": 131072,
+      "threshold": 131072,
+      "explicitTotal": 262144,
+      "budgetSum": 262144
+    },
+    {
+      "id": "nemotron-3-ultra",
+      "provider": "factory-g",
+      "maxInputTokens": 136464,
+      "maxOutputTokens": 65536,
+      "threshold": 136464,
+      "explicitTotal": 202000,
+      "budgetSum": 202000
+    },
+    {
+      "id": "glm-5.3",
+      "provider": "factory-g",
+      "maxInputTokens": 908928,
+      "maxOutputTokens": 131072,
+      "threshold": 250000,
+      "explicitTotal": 1040000,
+      "budgetSum": 1040000
+    },
+    {
+      "id": "kimi-k3",
+      "provider": "factory-g",
+      "maxInputTokens": 196608,
+      "maxOutputTokens": 65536,
+      "threshold": 196608,
+      "explicitTotal": 262144,
+      "budgetSum": 262144
+    },
+    {
+      "id": "minimax-m3",
+      "provider": "factory-g",
+      "maxInputTokens": 448000,
+      "maxOutputTokens": 64000,
+      "threshold": 250000,
+      "explicitTotal": 512000,
+      "budgetSum": 512000
+    },
+    {
+      "id": "minimax-m2.7",
+      "provider": "factory-g",
+      "maxInputTokens": 196600,
+      "maxOutputTokens": 64000,
+      "threshold": 196600,
+      "explicitTotal": null,
+      "budgetSum": 260600
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "provider": "factory-g",
+      "maxInputTokens": 908928,
+      "maxOutputTokens": 131072,
+      "threshold": 250000,
+      "explicitTotal": 1040000,
+      "budgetSum": 1040000
+    },
+    {
+      "id": "deepseek-v4-flash-0731",
+      "provider": "factory-g",
+      "maxInputTokens": 908928,
+      "maxOutputTokens": 131072,
+      "threshold": 250000,
+      "explicitTotal": 1040000,
+      "budgetSum": 1040000
+    },
+    {
+      "id": "gpt-6-astra",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-6-sol",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-6-luna",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-5.6-sol-fast",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-5.5",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-5.5-fast",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-5.4",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-5.4-fast",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "provider": "factory-o",
+      "maxInputTokens": 272000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 400000,
+      "budgetSum": 400000
+    },
+    {
+      "id": "gpt-5.4-mini-fast",
+      "provider": "factory-o",
+      "maxInputTokens": 272000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 400000,
+      "budgetSum": 400000
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "provider": "factory-o",
+      "maxInputTokens": 272000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 400000,
+      "budgetSum": 400000
+    },
+    {
+      "id": "gpt-5.2",
+      "provider": "factory-o",
+      "maxInputTokens": 272000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 400000,
+      "budgetSum": 400000
+    }
+  ]
+}

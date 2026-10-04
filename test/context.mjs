@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { compactionBudget, calibratedScale, selectCompactionRange, installContextOptimization, resolveSummaryTarget } from '../lib/context.js';
+function fixture({ pressure = 130000, provider = 'factory-a', reject = false } = {}) {
+  const events = [{ seq: 0, type: 'system/message', data: {} }, ...Array.from({ length: 30 }, (_, i) => ({ seq: i + 1, type: 'user/message', data: { role: 'user', content: [{ type: 'text', text: 'fixture' }] } })), { seq: 31, type: 'assistant/message', data: { message: { content: [] }, usage: { outputTokens: 1000 } } }];
+  const session = { id: 'fake-session', surface: { nodes: events.map(e => e.seq) }, eventAt: seq => events.find(e => e.seq === seq), requestHeader: () => ({ config: { provider, model: 'claude-opus-5-5', maxTokens: 64000 }, tools: [] }) };
+  let p = pressure; const measurement = () => ({ totalTokens: p, baseline: { kind: 'usage', usage: { inputTokens: p - 1000, outputTokens: 1000 } }, nodes: session.surface.nodes.map(seq => ({ seq, tokens: 1000 })) });
+  const meter = { measure: measurement }; const calls = []; let native = 0;
+  const llm = { resolveModelInfo: async () => ({ context: { contextWindow: 200000 } }), stream: () => {} };
+  const engine = { constructor: { name: 'BasicCompactionEngine' }, config: Object.freeze({ thresholdRatio: 0.8, maxTokens: 65536, modelPolicies: [] }), ctx: { llm }, async compactIfNeeded() { native++; return 'native'; }, async summarize(input) { calls.push({ summaryCap: this.config.maxTokens }); return input; }, async compactRegion(start, end, agent) { calls.push({ start, end }); if (reject) throw new Error('summary is not smaller than the shadowed content (100 >= 90)'); await this.summarize({}, agent); return { shadowedSeqs: session.surface.nodes.filter(seq => seq >= start && seq <= end) }; } };
+  const agent = { session, ctx: { get: name => ({ compaction: engine, tokenMeter: meter, llm }[name]) } };
+  const hooks = new Map(); const ctx = { on: (name, fn, options) => { hooks.set(name, { fn, options }); return () => hooks.delete(name); }, effect: () => {} }; const status = {}, diagnostics = []; let config = { factoryContextAlignment: false };
+  const dispose = installContextOptimization(ctx, () => config, status, x => diagnostics.push(x));
+  const preStep = () => hooks.get('agent/pre-step').fn({ agent }, () => engine.compactIfNeeded(agent, 'pressure', new AbortController().signal));
+  return { engine, agent, ctx, hooks, preStep, dispose, status, diagnostics, calls, native: () => native, setConfig: c => { config = { factoryContextAlignment: false, ...c }; }, setPressure: n => { p = n; }, events };
+}
+test('context: 200K / 64K output keeps a 16K margin and triggers at 119616', () => { assert.deepEqual(compactionBudget({ contextWindow: 200000, maxTokens: 64000 }), { threshold: 119616, target: 77750 }); assert.equal(compactionBudget({ contextWindow: 200000, maxTokens: 64000, headroomTokens: 65536 }).threshold, 70464); assert.throws(() => compactionBudget({ contextWindow: 64000, maxTokens: 64000 }), /safe input budget/); });
+test('context: observed 70K pressure causes no summary or history mutation', async () => { const f = fixture({ pressure: 70905 }); const before = JSON.stringify(f.agent.session.surface); assert.equal(await f.preStep(), null); assert.equal(f.calls.length, 0); assert.equal(JSON.stringify(f.agent.session.surface), before); assert.equal(f.native(), 0); f.dispose(); });
+test('context: calibration excludes output and uses prompt occupancy', () => { assert.equal(calibratedScale({ totalTokens: 80000, baseline: { kind: 'usage', usage: { outputTokens: 20000 } }, nodes: [{ tokens: 11000 }, { tokens: 1000 }] }, 4000, 1000), 4); });
+test('context: condenses a large prefix once, not a fresh summary twice', async () => { const f = fixture(); const result = await f.preStep(); assert.ok(result.shadowedSeqs.length > 5); assert.equal(f.calls.filter(x => x.start !== undefined).length, 1); assert.equal(f.calls.find(x => x.summaryCap)?.summaryCap, 4096); assert.equal(f.engine.config.maxTokens, 65536); assert.equal(await f.preStep(), null); assert.equal(f.calls.filter(x => x.start !== undefined).length, 1); assert.ok(f.diagnostics.every(x => !JSON.stringify(x).includes('fixture'))); f.dispose(); });
+test('context: cut keeps a tool call and all results together', () => { const events = [{ seq: 0, type: 'system/message' }, { seq: 1, type: 'user/message' }, { seq: 2, type: 'assistant/message', data: { message: { content: [{ type: 'tool-call' }, { type: 'tool-call' }] } } }, { seq: 3, type: 'tool/result' }, { seq: 4, type: 'tool/result' }, { seq: 5, type: 'user/message' }, { seq: 6, type: 'user/message' }]; const session = { surface: { nodes: events.map(e => e.seq) }, eventAt: seq => events[seq] }; const measurement = { totalTokens: 24000, nodes: events.map(e => ({ seq: e.seq, tokens: 3000 })) }; assert.deepEqual(selectCompactionRange(session, measurement, { target: 18000, scale: 1 }).seqs, [1, 2, 3, 4]); const orphan = { ...session, eventAt: seq => seq === 2 ? { seq, type: 'user/message' } : events[seq] }; assert.throws(() => selectCompactionRange(orphan, measurement, { target: 18000, scale: 1 }), /orphaned/); });
+test('context: no useful balanced range sends no summary', () => { const events = [{ seq: 0, type: 'user/message' }, { seq: 1, type: 'user/message' }]; const session = { surface: { nodes: [0, 1] }, eventAt: seq => events[seq] }; assert.equal(selectCompactionRange(session, { totalTokens: 90000, nodes: [{ seq: 0, tokens: 35 }, { seq: 1, tokens: 30000 }] }, { target: 50000, scale: 2 }), null); });
+test('context: rejected prefix is not sent again on the next step', async () => { const f = fixture({ reject: true }); await assert.rejects(f.preStep(), /not smaller/); assert.equal(await f.preStep(), null); assert.equal(f.calls.length, 1); assert.ok(f.diagnostics.some(x => x.action === 'skip-rejected-range')); f.dispose(); });
+test('context: opt-out, disabled plugin and other providers delegate to DSH', async () => { for (const config of [{ anthropicContextOptimization: false }, { enabled: false }, { routes: ['generic'] }]) { const f = fixture(); await f.preStep(); f.setConfig(config); assert.equal(await f.preStep(), 'native'); assert.equal(f.native(), 1); f.dispose(); } const f = fixture({ provider: 'other-anthropic' }); assert.equal(await f.preStep(), 'native'); assert.equal(f.native(), 1); assert.equal(f.calls.length, 0); f.dispose(); });
+test('context: confirmed overflow uses native recovery', async () => { const f = fixture(); await f.preStep(); assert.equal(await f.engine.compactIfNeeded(f.agent, 'context-overflow'), 'native'); f.dispose(); });
+test('context: prepend ordering, idempotent attach and disposal restore', async () => { const f = fixture(); const original = f.engine.compactIfNeeded; assert.equal(f.hooks.get('agent/pre-step').options.prepend, true); await f.preStep(); const patched = f.engine.compactIfNeeded; await f.preStep(); assert.equal(f.engine.compactIfNeeded, patched); assert.equal(f.status.engines, 1); f.dispose(); assert.equal(f.engine.compactIfNeeded, original); assert.equal(f.status.engines, 0); assert.equal(f.hooks.size, 0); });
+test('context: aborted work cannot issue a summary', async () => { const f = fixture(); await f.preStep(); const abort = new AbortController(); abort.abort(); await assert.rejects(f.engine.compactIfNeeded(f.agent, 'pressure', abort.signal), { name: 'AbortError' }); assert.equal(f.calls.filter(x => x.start !== undefined).length, 1); f.dispose(); });
+test('context: unknown compaction implementations are preserved and reported', async () => { const f = fixture(); f.engine.constructor = { name: 'CustomCompaction' }; const original = f.engine.compactIfNeeded; assert.equal(await f.preStep(), 'native'); assert.equal(f.engine.compactIfNeeded, original); assert.equal(f.status.state, 'unsupported'); f.dispose(); });
+test('context: agent disposal removes its patch before plugin unload', async () => { const f = fixture(); const original = f.engine.compactIfNeeded; await f.preStep(); f.hooks.get('agent/disposed').fn({ agent: f.agent }); assert.equal(f.engine.compactIfNeeded, original); assert.equal(f.status.engines, 0); f.dispose(); });
+test('context: summary model selection respects enabled routes, allowlist and region restrictions', () => {
+  assert.equal(resolveSummaryTarget({}), undefined);
+  assert.deepEqual(resolveSummaryTarget({ anthropicSummaryModel: 'factory-g/glm-5.3-flash' }), { provider: 'factory-g', model: 'glm-5.3-flash' });
+  for (const config of [
+    { anthropicSummaryModel: 'factory-g/glm-5.3-flash', modelAllowlist: ['claude-opus-5-5'] },
+    { anthropicSummaryModel: 'factory-g/glm-5.3-flash', routes: ['anthropic'] },
+    { anthropicSummaryModel: 'factory-a/claude-opus-5-fast' },
+    { anthropicSummaryModel: 'other-provider/unknown-model' },
+  ]) assert.throws(() => resolveSummaryTarget(config), { code: 'SUMMARY_MODEL_UNAVAILABLE' });
+});
+test('context: native threshold ratio of one is valid without removing headroom', () => { assert.equal(compactionBudget({ contextWindow: 200000, maxTokens: 64000, thresholdRatio: 1 }).threshold, 119616); });
+
+test('image checkpoints accept a verified multimodal compaction model', async () => {
+  // glm-5.3-flash read a unique four-digit code out of a real image on the
+  // generic route, so it may summarise image-bearing history. An unverified
+  // non-Claude model must still be refused rather than spend a full call.
+  const src = await import('node:fs').then(fs => fs.readFileSync(new URL('../lib/context.js', import.meta.url), 'utf8'));
+  assert.match(src, /IMAGE_VERIFIED_SUMMARY_MODELS = new Set\(\["glm-5\.3-flash"\]\)/, 'the verified list names glm-5.3-flash');
+  assert.match(src, /const imageCapable = summaryTarget\.provider === "factory-a" \|\| IMAGE_VERIFIED_SUMMARY_MODELS\.has\(summaryTarget\.model\)/);
+  assert.match(src, /if \(hasImage && !imageCapable\)/, 'the block now keys on verified capability, not on provider alone');
+});
