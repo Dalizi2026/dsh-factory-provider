@@ -54,6 +54,7 @@ import { createGateway } from "../lib/gateway.js";
 import { applyAnthropicCacheBreakpoints, fingerprintAnthropicPayload } from "../lib/cache.js";
 import { apply, Config } from "../lib/index.js";
 import { journal, readJournal } from "../lib/journal.js";
+import { readTokenStats } from "../lib/usage.js";
 import { fetchQuota } from "../lib/quota.js";
 import {
   createSessionIdMap,
@@ -685,13 +686,16 @@ async function startMockWorkos(t, mintToken) {
   return { baseURL: `http://127.0.0.1:${port}`, seen };
 }
 
-async function startGateway(t, { upstreamBaseURL, enabledRoutes, cliVersion = "0.231.0" }) {
+async function startGateway(t, { upstreamBaseURL, enabledRoutes, cliVersion = "0.231.0", toolClear, toolClearKeep, toolClearTrigger }) {
   const gateway = createGateway({
     resolver: createTokenResolver({}),
     enabledRoutes: enabledRoutes ?? ["anthropic", "generic"],
     gatewayPrefix: "/api/dsh-factory-provider",
     apiBaseURL: upstreamBaseURL,
     cliVersion,
+    ...(toolClear === undefined ? {} : { toolClear }),
+    ...(toolClearKeep === undefined ? {} : { toolClearKeep }),
+    ...(toolClearTrigger === undefined ? {} : { toolClearTrigger }),
     logger: { warn: () => {} },
   });
   const server = http.createServer((req, res) => {
@@ -1715,6 +1719,7 @@ test("bridge: management routes refuse a non-loopback caller", async (t) => {
         const chunks = body === undefined ? [] : [Buffer.from(JSON.stringify(body))];
         const req = {
           method,
+          url: path,
           headers: host === undefined ? {} : { host },
           socket: { remoteAddress },
           on() {},
@@ -1750,12 +1755,23 @@ test("bridge: management routes refuse a non-loopback caller", async (t) => {
     });
     assert.equal(foreignHost.statusCode, 403, "a loopback socket with a foreign Host is refused");
 
+    const privateStats = await invoke("/api/dsh-factory-provider/token-stats", {
+      remoteAddress: "192.0.2.1", host: "evil.example", method: "GET",
+    });
+    assert.equal(privateStats.statusCode, 403, "token statistics are loopback-only too");
+
     const local = await invoke("/api/dsh-factory-provider/accounts", {
       remoteAddress: "127.0.0.1",
       host: "127.0.0.1:19387",
       method: "GET",
     });
     assert.equal(local.statusCode, 200, "a loopback caller still works");
+    const localStats = await invoke("/api/dsh-factory-provider/token-stats", {
+      remoteAddress: "127.0.0.1", host: "127.0.0.1:19387", method: "GET",
+    });
+    assert.equal(localStats.statusCode, 200);
+    const statsBody = JSON.parse(localStats.body);
+    assert.equal(statsBody.ok, true); assert.equal(statsBody.value.range, 'today'); assert(Array.isArray(statsBody.value.rows));
   });
 });
 
@@ -2338,6 +2354,8 @@ test("cache: only the anthropic route gains markers", async (t) => {
 });
 
 test("gateway: usage is collected from a streamed reply without buffering it", async (t) => {
+  const model = "claude-haiku-4-5-20251001";
+  const before = readTokenStats({ range: '30d' }).rows.find(row => row.model === model);
   // Anthropic reports usage across message_start and message_delta, and a chunk
   // boundary can fall inside an event. The observer must merge fields (not sum
   // cumulative repeats) and still pass every byte through unchanged.
@@ -2383,6 +2401,35 @@ test("gateway: usage is collected from a streamed reply without buffering it", a
     assert.equal(usage.output, 7);
     assert.equal(usage.totalInput, 12 + 5000 + 300);
     assert.ok(Math.abs(usage.hitRatio - 5000 / 5312) < 0.001, "hit ratio is read / total input");
+    const stats = readTokenStats({ range: '30d' }).rows.find(row => row.model === model);
+    assert.equal(stats.requests, (before?.requests ?? 0) + 1);
+    assert.equal(stats.total - (before?.total ?? 0), 12 + 5000 + 300 + 7, "cumulative SSE counters are stored once");
+  });
+});
+
+test('token statistics: chat and Responses input includes cached tokens only once, no-usage replies create no row', async t => {
+  const upstream = await startMockUpstream(t, (record, res) => {
+    const usage = record.body.model === 'stats-chat' ?
+      { prompt_tokens: 1000, completion_tokens: 10, prompt_tokens_details: { cached_tokens: 800 } } :
+      { input_tokens: 900, output_tokens: 20, input_tokens_details: { cached_tokens: 700 } };
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(record.body.model === 'stats-no-usage' ? { content: 'ok' } : { usage }));
+  });
+  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, enabledRoutes: ['generic', 'openai'] });
+  await withEnv({ FACTORY_API_KEY: `fk-offline-${'x'.repeat(40)}` }, async () => {
+    for (const [route, model] of [['generic', 'stats-chat'], ['openai', 'stats-responses'], ['generic', 'stats-no-usage']]) {
+      const reply = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/${route === 'generic' ? 'o' : 'openai'}/v1/${route === 'generic' ? 'chat/completions' : 'responses'}`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model, stream: false, messages: [{ role: 'user', content: 'offline fixture' }], input: 'offline fixture', max_tokens: 32 }),
+      });
+      assert.equal(reply.status, 200); await reply.text();
+    }
+    await settle();
+    const rows = readTokenStats({ range: '30d' }).rows;
+    const chat = rows.find(row => row.model === 'stats-chat'), response = rows.find(row => row.model === 'stats-responses');
+    assert.equal(chat.input, 200); assert.equal(chat.read, 800); assert.equal(chat.write, null); assert.equal(chat.output, 10); assert.equal(chat.total, 1010);
+    assert.equal(response.input, 200); assert.equal(response.read, 700); assert.equal(response.output, 20); assert.equal(response.total, 920);
+    assert.equal(rows.some(row => row.model === 'stats-no-usage'), false);
   });
 });
 
@@ -2509,4 +2556,123 @@ test("gateway: body diagnostics count tool-result images without logging image d
   assert.equal(record.shape.imageBase64Bytes, 8);
   assert.equal(record.shape.bodyBytes, Buffer.byteLength(JSON.stringify(upstream.seen[0].body)));
   assert(!JSON.stringify(record).includes("ZmFrZQ=="));
+});
+
+// --- server-side tool clearing ----------------------------------------------------
+
+async function sendAnthropic(gateway, body, headers = {}) {
+  const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/a/v1/messages`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+  await readAll(res);
+  return res;
+}
+
+const CLEAR_BODY = {
+  model: "claude-sonnet-5-5",
+  system: "SYSTEM",
+  max_tokens: 64,
+  stream: true,
+  messages: [{ role: "user", content: "hello" }],
+};
+
+function anthropicFixture(t) {
+  return seedFactoryHome(t, { access_token: "fk-tool-clear-fixture" });
+}
+
+test("tool clear: off by default leaves the request byte-identical", async (t) => {
+  const home = anthropicFixture(t);
+  const upstream = await startMockUpstream(t, (_r, res) => sseReply(res, [{ type: "message_start" }]));
+  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL });
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
+    await sendAnthropic(gateway, CLEAR_BODY);
+    const sent = upstream.seen.at(-1);
+    assert.equal(sent.body.context_management, undefined, "no context_management injected");
+    assert.ok(!String(sent.headers["anthropic-beta"] ?? "").includes("context-management-2025-06-27"), "no beta header added");
+  });
+});
+
+test("tool clear: on injects the edit and the required beta header", async (t) => {
+  const home = anthropicFixture(t);
+  const upstream = await startMockUpstream(t, (_r, res) => sseReply(res, [{ type: "message_start" }]));
+  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, toolClear: true });
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
+    await sendAnthropic(gateway, CLEAR_BODY);
+    const sent = upstream.seen.at(-1);
+    const edits = sent.body.context_management?.edits;
+    assert.equal(edits?.length, 1, "one edit");
+    assert.equal(edits[0].type, "clear_tool_uses_20250919");
+    assert.equal(edits[0].keep.type, "tool_uses");
+    assert.equal(edits[0].trigger.type, "input_tokens");
+    assert.ok(String(sent.headers["anthropic-beta"]).includes("context-management-2025-06-27"), "beta header present");
+  });
+});
+
+test("tool clear: honours the configured keep and trigger values", async (t) => {
+  const home = anthropicFixture(t);
+  const upstream = await startMockUpstream(t, (_r, res) => sseReply(res, [{ type: "message_start" }]));
+  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, toolClear: true, toolClearKeep: 7, toolClearTrigger: 12345 });
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
+    await sendAnthropic(gateway, CLEAR_BODY);
+    const edit = upstream.seen.at(-1).body.context_management.edits[0];
+    assert.equal(edit.keep.value, 7);
+    assert.equal(edit.trigger.value, 12345);
+  });
+});
+
+test("tool clear: never overwrites a caller's own context_management", async (t) => {
+  const home = anthropicFixture(t);
+  const upstream = await startMockUpstream(t, (_r, res) => sseReply(res, [{ type: "message_start" }]));
+  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, toolClear: true });
+  const mine = { edits: [{ type: "clear_thinking_20251015", keep: { type: "thinking_turns", value: 1 } }] };
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
+    await sendAnthropic(gateway, { ...CLEAR_BODY, context_management: mine });
+    const sent = upstream.seen.at(-1);
+    assert.deepEqual(sent.body.context_management, mine, "caller's setting is preserved verbatim");
+    assert.ok(String(sent.headers["anthropic-beta"] ?? "").includes("context-management-2025-06-27"), "the caller's edit still gets its required beta");
+  });
+});
+
+test("tool clear: beta header is appended, not duplicated or replaced", async (t) => {
+  const home = anthropicFixture(t);
+  const upstream = await startMockUpstream(t, (_r, res) => sseReply(res, [{ type: "message_start" }]));
+  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, toolClear: true });
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
+    await sendAnthropic(gateway, CLEAR_BODY, { "anthropic-beta": "some-other-beta" });
+    const beta = String(upstream.seen.at(-1).headers["anthropic-beta"]);
+    assert.ok(beta.includes("some-other-beta"), "existing beta kept");
+    assert.ok(beta.includes("context-management-2025-06-27"), "ours added");
+    assert.equal(beta.split(",").filter((p) => p === "context-management-2025-06-27").length, 1, "added once");
+  });
+});
+
+test("tool clear: coexists with fast-mode beta and does not duplicate ours", async (t) => {
+  const home = anthropicFixture(t);
+  const upstream = await startMockUpstream(t, (_r, res) => sseReply(res, [{ type: "message_start" }]));
+  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, toolClear: true });
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
+    await sendAnthropic(gateway, { ...CLEAR_BODY, model: "claude-opus-5-5-fast" }, { "anthropic-beta": "context-management-2025-06-27" });
+    const beta = String(upstream.seen.at(-1).headers["anthropic-beta"]);
+    assert.equal(beta.split(",").filter((p) => p === "context-management-2025-06-27").length, 1, "not duplicated when already present");
+    assert.ok(beta.includes("fast-mode"), "fast mode beta still added");
+  });
+});
+
+test("tool clear: other routes are untouched", async (t) => {
+  const home = anthropicFixture(t);
+  const upstream = await startMockUpstream(t, (_r, res) => sseReply(res, [{ choices: [{ delta: { content: "ok" } }] }]));
+  const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, enabledRoutes: ["generic"], toolClear: true });
+  await withEnv({ FACTORY_API_KEY: home }, async () => {
+    const res = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/o/v1/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "glm-5.3-flash", messages: [{ role: "user", content: "hi" }] }),
+    });
+    await readAll(res);
+    const sent = upstream.seen.at(-1);
+    assert.equal(sent.body.context_management, undefined, "generic route untouched");
+    assert.equal(sent.headers["anthropic-beta"], undefined);
+  });
 });

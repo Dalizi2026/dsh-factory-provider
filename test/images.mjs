@@ -48,16 +48,34 @@ test('multi-image preparation: long text triggers history recovery; abort stops 
 
 async function nativeFixture({config={},storeImpl=store()}={}){
  const [{Context},{PiAiAdapter}]=await Promise.all([host('cordis'),host('dsh-llm-pi-ai')]);
- const ctx=new Context(),seen=[],profiles=new Map();let settings=config;
+ const ctx=new Context(),seen=[],headers=[],profiles=new Map();let settings=config;
  for(const provider of ['factory-a','factory-g','factory-o','unrelated'])profiles.set(provider,{...profile,modelErrors:new Map(),configuredMaxTokens:new Map(),streamIdleTimeoutMs:60000});
  const model={id:'claude-sonnet-5-5',name:'fixture',api:'anthropic-messages',provider:'offline',input:['text','image'],contextWindow:1000000,maxTokens:128000,reasoning:false};
- const models={getModel:(_provider,id)=>({...model,id}),streamSimple:async function*(_model,context){seen.push(context);yield {type:'done',reason:'stop',message:{role:'assistant',content:[{type:'text',text:'ok'}],stopReason:'stop',usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2},api:'anthropic-messages',provider:'offline',model:'fixture'}};}};
+ const models={getModel:(_provider,id)=>({...model,id}),streamSimple:async function*(_model,context,sdk){seen.push(context);headers.push(sdk.headers);yield {type:'done',reason:'stop',message:{role:'assistant',content:[{type:'text',text:'ok'}],stopReason:'stop',usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2},api:'anthropic-messages',provider:'offline',model:'fixture'}};}};
  const adapter=new PiAiAdapter({profiles:()=>profiles,resolveApiKey:async()=>undefined,resolveAttachments:()=>storeImpl});
  adapter.snapshot={profiles,models};ctx.provide('llm',{registration:()=>({adapter})});const state={},records=[];
  const dispose=installAdaptiveImages(ctx,()=>settings,state,r=>records.push(r));await new Promise(resolve=>setImmediate(resolve));
- return {ctx,adapter,profiles,seen,state,records,store:storeImpl,dispose,setConfig:c=>{settings=c;}};
+ return {ctx,adapter,profiles,seen,headers,state,records,store:storeImpl,dispose,setConfig:c=>{settings=c;}};
 }
 async function consume(stream){const chunks=[];for await(const chunk of stream)chunks.push(chunk);return chunks;}
+test('real native adapter: summary metadata is scoped to text/image compaction, including image opt-out', {skip}, async()=>{
+ const f=await nativeFixture({config:{factoryAdaptiveImages:false}});try{
+  f.profiles.get('factory-a').headers={'x-existing':'fixture'};
+  const request={...options(1),messages:[{role:'user',content:[{type:'text',text:'Summarize.'}]}],purpose:'compaction'};
+  const call=await f.adapter.prepareCall(request.provider,request.model);await consume(call.stream(request));
+  assert.equal(f.headers[0]['x-dsh-factory-purpose'],'compaction');assert.equal(f.headers[0]['x-existing'],'fixture');
+  assert.equal(f.profiles.get('factory-a').headers['x-dsh-factory-purpose'],undefined);
+  await consume(f.adapter.stream({...request,purpose:'chat'}));assert.equal(f.headers[1]['x-dsh-factory-purpose'],undefined);
+  await consume(f.adapter.stream({...options(1),purpose:'compaction'}));assert.equal(f.headers[2]['x-dsh-factory-purpose'],'compaction');
+  assert.equal(f.store.calls.at(-1).target.maxBytes,1048576);
+  await consume(f.adapter.stream({...request,purpose:'chat',sessionId:'native-session-a'}));
+  assert.match(f.headers[3]['x-dsh-factory-session'],/^[a-f0-9]{64}$/);
+  assert(!f.headers[3]['x-dsh-factory-session'].includes('native-session-a'));
+  await consume(f.adapter.stream({...request,purpose:'chat',sessionId:'native-session-b'}));
+  assert.notEqual(f.headers[3]['x-dsh-factory-session'],f.headers[4]['x-dsh-factory-session']);
+  assert.equal(f.profiles.get('factory-a').headers['x-dsh-factory-session'],undefined);
+ }finally{f.dispose();}
+});
 for(const [provider,model]of [['factory-a','claude-sonnet-5-5'],['factory-a','claude-opus-5-5'],['factory-g','glm-5.3-flash'],['factory-o','gpt-6-sol']])test(`real native PiAiAdapter: ${provider}/${model} sends all 20 fresh images with smaller prepared versions`,{skip},async()=>{
  const f=await nativeFixture();try{
   const request={...options(20),provider,model};const original=JSON.stringify(request);const call=await f.adapter.prepareCall(provider,model);const chunks=await consume(call.stream(request));

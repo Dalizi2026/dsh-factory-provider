@@ -146,10 +146,18 @@ test('native DSH: GPT summary selection is isolated and default keeps native sum
   const f = await setup({ config: { anthropicSummaryModel: 'factory-o/gpt-6-luna' } }); await f.run(); assert.equal(f.seen[0].provider, 'factory-o'); assert.equal(f.seen[0].model, 'gpt-6-luna'); f.dispose();
   const original = await setup({ nativeConfig: { summarizationProvider: 'factory-a', summarizationModel: 'claude-sonnet-5-5' } }); await original.run(); assert.equal(original.seen[0].model, 'claude-sonnet-5-5'); original.dispose();
 });
-test('native DSH: unavailable selection does not send or replace; enabling it permits retry', { skip }, async () => {
+test('native DSH: unavailable default GLM falls back to native summary; enabling it selects GLM', { skip }, async () => {
   const f = await setup({ config: { anthropicSummaryModel: 'factory-g/glm-5.3-flash', routes: ['anthropic'] } }); const before = [...f.session.surface.nodes];
-  await f.run(); await f.run(); assert.equal(f.seen.length, 0); assert.deepEqual(f.session.surface.nodes, before);
-  f.setConfig({ anthropicSummaryModel: 'factory-g/glm-5.3-flash', routes: ['anthropic', 'generic'] }); await f.run(); assert.equal(f.seen.length, 1); f.dispose();
+  await f.run(); assert.equal(f.seen.length, 1); assert.equal(f.seen[0].provider, 'factory-a');
+  assert.notDeepEqual(f.session.surface.nodes, before); assert(f.diagnostics.some(e => e.action === 'summary-model-fallback')); f.dispose();
+  const g = await setup({ config: { anthropicSummaryModel: 'factory-g/glm-5.3-flash', routes: ['anthropic','generic'] } });
+  await g.run(); assert.equal(g.seen[0].provider, 'factory-g'); g.dispose();
+});
+test('native DSH: GLM hidden by model selection falls back without changing the main header', { skip }, async () => {
+  const f = await setup({ config: { anthropicSummaryModel: 'factory-g/glm-5.3-flash', modelAllowlist: ['claude-opus-5-5'] } });
+  const header = JSON.stringify(f.session.requestHeader()); await f.run();
+  assert.equal(f.seen.length, 1); assert.equal(f.seen[0].model, 'claude-opus-5-5');
+  assert.equal(JSON.stringify(f.session.requestHeader()), header); f.dispose();
 });
 test('native DSH: too-small summary context fails before any model request', { skip }, async () => { const f = await setup({ config: { anthropicSummaryModel: 'factory-g/glm-5.3-flash' }, capacities: { 'factory-g/glm-5.3-flash': 16000 } }); const before = [...f.session.surface.nodes]; await f.run(); assert.equal(f.seen.length, 0); assert.deepEqual(f.session.surface.nodes, before); assert.ok(f.diagnostics.some(e => e.code === 'SUMMARY_CONTEXT_TOO_SMALL')); f.dispose(); });
 test('native DSH: a verified multimodal compaction model may summarise image history', { skip }, async () => {

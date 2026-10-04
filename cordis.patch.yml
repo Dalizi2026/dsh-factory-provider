@@ -28,7 +28,12 @@
         # CLI 0.233.0 model budgets; the two 5.5 models use the selected 400K threshold.
         factoryContextAlignment: true
         factoryRequestRecovery: true
+        quotaFloat: false
         factoryAdaptiveImages: true
+        anthropicToolClear: false
+        anthropicToolClearKeep: 3
+        anthropicToolClearTrigger: 20000
+        anthropicToolClearBatchTokens: 20000
         factoryRequestMaxBytes: 4194304
         opus55CompactionTokens: 400000
         sonnet55CompactionTokens: 400000
