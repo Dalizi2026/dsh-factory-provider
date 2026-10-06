@@ -119,7 +119,7 @@ test('native DSH: shipped YAML places every new setting inside the plugin config
   const patch = parse(fs.readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8'));
   let found;
   function walk(value) { if (!value || typeof value !== 'object') return; if (value.name === 'dsh-factory-provider') found = value.config; for (const child of Object.values(value)) walk(child); }
-  walk(patch); assert.ok(found); assert.equal(found.factoryAdaptiveImages, true); assert.equal(found.anthropicContextOptimization, true); assert.equal(found.anthropicCompactionHeadroomTokens, 16384); assert.equal(found.anthropicSummaryMaxTokens, 16384); assert.equal(found.anthropicSummaryModel, 'factory-g/glm-5.3-flash'); assert.equal(found.factoryContextAlignment, true); assert.equal(found.opus55CompactionTokens, 400000); assert.equal(found.sonnet55CompactionTokens, 400000);
+  walk(patch); assert.ok(found); assert.equal(found.factoryAdaptiveImages, true); assert.equal(found.anthropicContextOptimization, true); assert.equal(found.anthropicCompactionHeadroomTokens, 16384); assert.equal(found.anthropicSummaryMaxTokens, 16384); assert.equal(found.anthropicSummaryModel, 'factory-g/glm-5.3-flash'); assert.equal(found.factoryContextAlignment, true); assert.equal(found.opus55CompactionTokens, 400000); assert.equal(found.sonnet55CompactionTokens, 400000); assert.equal(found.glmFlashCompactionTokens, 900000);
 });
 test('native DSH: guard precedes native listener; 70K replay does not summarize', { skip }, async () => { const f = await setup({ pressure: 70905 }); const surface = [...f.session.surface.nodes]; assert.equal(await f.run(), 'continued'); assert.equal(f.seen.length, 0); assert.deepEqual(f.session.surface.nodes, surface); assert.equal(f.status.state, 'active'); f.dispose(); });
 test('native DSH: one transaction shrinks history, caps summary, leaves system/tail intact', { skip }, async () => {
@@ -190,10 +190,10 @@ test('native DSH alignment: Opus and Sonnet 5.5 leave 399999 intact and compact 
     await at.run();assert.equal(at.seen.length,1);assert.equal(at.status.lastBudget.threshold,400000);assert.equal(at.seen[0].maxTokens,4096);assert(at.session.snapshotEvents().some(e=>e.type==='compaction/summary'));await at.run();assert.equal(at.seen.length,1);at.dispose();
   }
 });
-test('native DSH alignment: GPT and Core trigger at their CLI threshold on generic-only routes', { skip }, async () => {
+test('native DSH alignment: GPT and Core trigger at configured thresholds on single routes', { skip }, async () => {
   for(const [provider,model,threshold,output,route] of [
     ['factory-o','gpt-6-sol',250000,128000,'openai'],
-    ['factory-g','glm-5.3-flash',250000,131072,'generic'],
+    ['factory-g','glm-5.3-flash',900000,131072,'generic'],
     ['factory-g','inkling',250000,32768,'generic'],
     ['factory-g','nemotron-3-ultra',136464,65536,'generic'],
   ]) {
@@ -201,6 +201,43 @@ test('native DSH alignment: GPT and Core trigger at their CLI threshold on gener
     const below=await setup({provider,model,pressure:threshold-1,output,config});await below.run();assert.equal(below.seen.length,0);assert.equal(below.status.lastBudget.threshold,threshold);below.dispose();
     const at=await setup({provider,model,pressure:threshold,output,config});await at.run();assert.equal(at.seen.length,1);assert.equal(at.seen[0].model,model);assert.equal(at.status.lastBudget.threshold,threshold);at.dispose();
   }
+});
+test('native DSH alignment: GLM Flash respects custom thresholds, safety space and lower host policy', { skip }, async () => {
+  for (const [config, nativeConfig, capacities, output, threshold] of [
+    [{ glmFlashCompactionTokens: 300000 }, {}, {}, 131072, 300000],
+    [{ glmFlashCompactionTokens: 966000 }, {}, {}, 131072, 904504],
+    [{}, { modelPolicies: [{ provider: 'factory-g', model: 'glm-5.3-flash', thresholdRatio: 0.2 }] }, {}, 131072, 209715],
+    [{}, {}, { 'factory-g/glm-5.3-flash': 200000 }, 64000, 123000],
+  ]) {
+    const f = await setup({ provider: 'factory-g', model: 'glm-5.3-flash', pressure: threshold - 1, output,
+      config: { factoryContextAlignment: true, routes: ['generic'], ...config }, nativeConfig, capacities });
+    await f.run(); assert.equal(f.seen.length, 0); assert.equal(f.status.lastBudget.threshold, threshold);
+    assert.equal(f.status.lastBudget.policy, 'zcode-factory-budget'); f.dispose();
+  }
+});
+test('native DSH alignment: approved defaults trigger across vendor families, with live per-model overrides', { skip }, async () => {
+  for(const [provider,model,threshold,output] of [
+    ['factory-g','glm-5.3',890000,131072],['factory-g','qwen3.8-max',118000,131072],
+    ['factory-g','kimi-k3',190000,65536],['factory-g','minimax-m3',420000,64000],
+    ['factory-g','minimax-m2.7',185000,64000],['factory-g','deepseek-v4-pro',830000,131072],
+    ['factory-g','deepseek-v4-flash-0731',830000,131072],['factory-a','claude-opus-4-8',850000,128000],
+    ['factory-a','claude-fable-5.1',850000,128000],['factory-a','claude-sonnet-5',850000,128000],
+    ['factory-a','claude-sonnet-4-6',910000,64000],
+  ]) {
+    const f=await setup({provider,model,pressure:threshold-1,output,config:{factoryContextAlignment:true}});
+    await f.run();assert.equal(f.status.lastBudget.threshold,threshold,model);assert.equal(f.seen.length,0,model);
+    f.setConfig({factoryContextAlignment:true,modelCompactionTokens:{[model]:threshold-1000}});
+    await f.run();assert.equal(f.status.lastBudget.threshold,threshold-1000,model);assert.equal(f.seen.length,1,model);
+    await f.run();assert.equal(f.seen.length,1,'no immediate repeat');f.dispose();
+  }
+});
+test('native DSH alignment: saved Haiku override still follows effort and a small host wins over a saved high threshold', { skip }, async () => {
+  const f=await setup({model:'claude-haiku-4-5-20251001',reasoningEffort:'high',output:32000,pressure:133423,
+    config:{factoryContextAlignment:true,modelCompactionTokens:{'claude-haiku-4-5-20251001':160000}}});
+  await f.run();assert.equal(f.status.lastBudget.threshold,133424);assert.equal(f.seen.length,0);f.dispose();
+  const g=await setup({provider:'factory-g',model:'glm-5.3',output:64000,pressure:122999,capacities:{'factory-g/glm-5.3':200000},
+    config:{factoryContextAlignment:true,modelCompactionTokens:{'glm-5.3':890000}}});
+  await g.run();assert.equal(g.status.lastBudget.threshold,123000);assert.equal(g.seen.length,0);g.dispose();
 });
 test('native DSH alignment: Haiku uses the actual requested thinking effort', { skip }, async () => {
   for(const [reasoningEffort,threshold] of [['low',153904],['medium',145712],['high',133424]]) {

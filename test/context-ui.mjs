@@ -39,13 +39,12 @@ test('context UI: unavailable selection stays visible, optimization checkbox sen
   assert.deepEqual(f.changes, [{ field: 'anthropicContextOptimization', value: false }]);
 });
 
-test('context UI: alignment and independent 400K thresholds can be edited', () => {
+test('context UI: alignment can be switched and thresholds live in the Models card', () => {
   const f=render({routes:['anthropic']},'context');
   const toggle=f.nodes.find(n=>n.type==='label'&&n.children.includes('configContextAlignment')).children[0];
   assert.equal(toggle.props.checked,true);toggle.props.onChange({target:{checked:false}});
-  const thresholds=f.nodes.filter(n=>n.type==='input'&&n.props.max===872000);assert.equal(thresholds.length,2);assert(thresholds.every(n=>n.props.value==='400000'));
-  thresholds[0].props.onChange({target:{value:'350000'}});thresholds[1].props.onChange({target:{value:'450000'}});
-  assert.deepEqual(f.changes,[{field:'factoryContextAlignment',value:false},{field:'opus55CompactionTokens',value:'350000'},{field:'sonnet55CompactionTokens',value:'450000'}]);
+  assert.deepEqual(f.changes,[{field:'factoryContextAlignment',value:false}]);
+  assert(!f.nodes.some(n=>n.type==='input'&&[872000,904504].includes(n.props.max)));
 });
 
 test('request recovery UI: switch and byte budget are editable',()=>{
@@ -136,7 +135,7 @@ test('settings: cost settings live in one visible card, not the collapsed one', 
   const context = src.slice(src.indexOf('function ContextCard'), src.indexOf('function ConfigCard'));
   for (const field of [
     'anthropicToolClear', 'anthropicToolClearKeep', 'anthropicToolClearTrigger', 'anthropicToolClearBatchTokens',
-    'factoryContextAlignment', 'opus55CompactionTokens', 'sonnet55CompactionTokens',
+    'factoryContextAlignment',
     'anthropicContextOptimization', 'anthropicSummaryModel', 'anthropicSummaryMaxTokens',
     'anthropicCompactionHeadroomTokens',
   ]) {
@@ -154,7 +153,7 @@ test('settings: cost settings live in one visible card, not the collapsed one', 
   const hints = [...zh.matchAll(/\w*[Hh]int\w*:\s*\n?\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
   const longest = Math.max(...hints.map((h) => h.length));
   assert.ok(longest <= 60, `no hint longer than 60 chars (longest ${longest})`);
-  assert.ok(hints.reduce((a, h) => a + h.length, 0) < 620, 'hint text stays trimmed');
+  assert.match(src, /fp-budgetDetails/, 'budget details can be folded rather than crowding the card');
 });
 
 test('model table: one name column, route suffix dropped', () => {

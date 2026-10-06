@@ -25,7 +25,7 @@
         # rewrite takes over placement; passthrough changes nothing.
         anthropicCacheMode: auto
         anthropicCacheTTL: 5m
-        # CLI 0.233.0 model budgets; the two 5.5 models use the selected 400K threshold.
+        # CLI 0.233.0 input/output budgets, adapted per-model compaction defaults.
         factoryContextAlignment: true
         factoryRequestRecovery: true
         quotaFloat: false
@@ -37,6 +37,11 @@
         factoryRequestMaxBytes: 4194304
         opus55CompactionTokens: 400000
         sonnet55CompactionTokens: 400000
+        # ZCode's 13K safety buffer inside Factory's input envelope.
+        glmFlashCompactionTokens: 900000
+        # Per-model user overrides. Empty uses the approved policy defaults;
+        # explicit legacy Opus/Sonnet/Flash values are still respected.
+        modelCompactionTokens: {}
         # Claude summary optimization. The 16K margin applies to summary
         # capacity checks and compatibility fallback, not CLI budgets twice.
         anthropicContextOptimization: true

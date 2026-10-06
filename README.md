@@ -2,7 +2,7 @@
 
 把 [Factory](https://factory.ai) 的模型接进 [DeepSeek Harness](https://github.com/deepseek-ai) —— 用 Factory 订阅额度跑 DSH，支持 Claude、GLM、Kimi、MiniMax 等模型。
 
-**当前版本：1.3.0**
+**当前版本：1.3.1**
 
 ---
 
@@ -173,11 +173,11 @@ DSH 的模型列表太长会很碍事。在「模型」卡片里：
 | **API key** | 展开 | 账号列表、粘贴新 key、切换、删除 |
 | **订阅额度** | 展开 | 标准池与 Core 池的用量进度条、重置倒计时、超额策略；额度悬浮窗开关 |
 | **Token 统计** | 收起 | 按模型的用量累计（展开后才开始请求）|
-| **上下文与压缩** | 展开 | 工具清理、上下文对齐、压缩阈值、摘要设置 |
-| **模型** | 收起 | 三条路由的模型表，逐条勾选 |
+| **上下文与压缩** | 展开 | 工具清理、上下文对齐开关、摘要设置 |
+| **模型** | 收起 | 选择模型、编辑压缩阈值并保存；三条路由的模型显示范围 |
 | **高级** | 收起 | 连接与缓存配置、请求保护、诊断日志 |
 
-> **改完记得保存。** 「上下文与压缩」和「高级」两张卡片各自都有保存按钮。
+> **改完记得保存。** 「模型」「上下文与压缩」和「高级」均可保存当前修改。
 
 ---
 
@@ -223,7 +223,33 @@ DSH 压缩历史时要用模型生成摘要。默认会**沿用主模型** —�
 
 ### 3. 提高压缩阈值
 
-Opus 5.5 / Sonnet 5.5 的压缩阈值默认 40 万 token。**提高它并不能省钱** —— 每次压缩的重写成本是 `1.25 × 每轮上下文增长量`，与阈值无关；而每轮的读取成本随阈值线性增长。所以阈值越高，读取成本越高，重写成本不变。
+普通 Opus 5.5 / Sonnet 5.5 的压缩阈值仍默认 40 万 token。提高阈值通常减少压缩次数，也会增加历史读取量与缓存失效后的冷输入量；重写成本还受压缩方式和缓存状态影响。是否更省额度要比较实际输入、摘要、缓存读写及额度，不只看命中率。
+
+### 逐模型压缩阈值
+
+在「模型」卡中选择一个模型，输入整数 token 数，然后保存。「恢复默认」会移除该模型的用户覆盖；切换模型不会丢失其它模型的待保存修改。预算详情默认折叠，Factory 窗口显著小于原厂标称窗口的条目显示简短提醒。
+
+默认值属于经用户批准的插件策略，保留原始 Droid 预算表，**不是已实测最优值，也不是原厂在 Factory 上的默认值**：
+
+| 模型组 | 默认压缩阈值 |
+| --- | ---: |
+| GLM-5.3-Flash / GLM-5.3 | 900000 / 890000 |
+| Qwen3.8-Max / Kimi K3 | 118000 / 190000 |
+| MiniMax M3 / M2.7 | 420000 / 185000 |
+| Opus 5、4.8、4.7；Fable 5、5.1；Sonnet 5 | 850000 |
+| Sonnet 4.6 | 910000 |
+| DeepSeek V4 Pro / Flash-0731 | 830000（参考 DSH 通用规则） |
+| GPT / Inkling | 250000 |
+| Nemotron-3-Ultra | 136464 |
+| 普通 Opus 5.5 / Sonnet 5.5 | 400000 |
+| Opus 5.5 Fast | 250000；地区限制保留 |
+| Haiku 4.5 | 按思考档位：low 153904、medium 145712、high 133424 |
+
+GLM / Qwen 留13000额外缓冲，其他长窗口Claude借用同样缓冲；MiniMax留2048，DeepSeek留65536。可保存上限为 `min(Factory输入预算,窗口−目录最大输出)−缓冲`。实际执行还受更小宿主窗口、本轮输出预留、Haiku思考档位和宿主显式低阈值限制；413字节保护继续独立生效。摘要输出设置与压缩后的目标比例保持现有配置。
+
+用户覆盖保存在 `modelCompactionTokens` 中。优先级是：逐模型覆盖 → 三个旧专用字段的已有值 → 新默认策略。旧配置不会被静默清掉，普通 Opus 5.5 / Sonnet 5.5 / GLM Flash 的旧字段继续兼容。
+
+策略依据：[ZCode](https://zcode.z.ai/cn/docs/qa)、[Qwen Code](https://github.com/QwenLM/qwen-code/blob/main/packages/core/src/services/chatCompressionService.ts)、[Kimi CLI](https://github.com/MoonshotAI/kimi-cli/blob/main/docs/en/configuration/config-files.md)、[MiniMax Code](https://github.com/MiniMax-AI/minimax-code/blob/main/packages/agent-modules/context-manager/src/provider-budget.ts)、[Claude Code](https://code.claude.com/docs/en/model-config#context-window-and-auto-compaction)。无可靠原厂精确触发线的模型继续保留Droid设置；MiniMax有不同运行路径，本插件参考新本地预算函数。
 
 ---
 
@@ -315,9 +341,11 @@ YYYY-MM-DD.jsonl
 | `factoryAdaptiveImages` | `true` | 按图片出现次数、文字/工具估算占用分配压缩预算，复用 DSH 图片编码器；不兼容宿主显示未接入，可关闭回退 |
 | `factoryRequestRecovery` | `true` | 只对 Factory 的 413 做有次数限制的恢复：旧图片移出请求，再由 DSH 原生事务压缩历史；不会原样无限重发 |
 | `factoryRequestMaxBytes` | `4194304` | 三条路由最终 JSON 的本地保护预算（4 MiB），不是上游实测硬上限；`0` 关闭，最大 `33554432` |
-| `factoryContextAlignment` | `true` | 启用 Droid CLI 0.233.0 的逐模型输入预算和压缩阈值；适用于三条 Factory 路由 |
+| `factoryContextAlignment` | `true` | 启用 Droid CLI 0.233.0 的逐模型输入输出预算；普通 Opus/Sonnet 5.5 和 GLM Flash 使用下方单独阈值，其余保留 Droid 阈值 |
 | `opus55CompactionTokens` | `400000` | 普通版 Opus 5.5 的压力压缩阈值，范围 `16384..872000`；有效值还受输入预算约束 |
 | `sonnet55CompactionTokens` | `400000` | 普通版 Sonnet 5.5 的压力压缩阈值，同上 |
+| `glmFlashCompactionTokens` | `900000` | GLM-5.3-Flash 压力压缩阈值，范围 `16384..904504`。参考 [ZCode](https://zcode.z.ai/cn/docs/qa) 的 13000 安全缓冲；有效阈值不超过 `min(Factory 输入预算, 宿主窗口−实际输出预留)−13000`，尊重宿主更低阈值。90 万是预算推导，尚未实测接近上限的真实请求；413 保护仍独立生效 |
+| `modelCompactionTokens` | `{}` | 逐模型用户阈值覆盖，例如 `{"kimi-k3":180000}`；模型卡编辑并保存。整数下限16384，上限按模型安全预算校验；空字典使用推荐策略并兼容旧专用字段 |
 | `anthropicContextOptimization` | `true` | Claude 摘要长度、摘要模型和兼容压缩优化开关；关闭它不会关闭逐模型阈值 |
 | `anthropicSummaryModel` | `"factory-g/glm-5.3-flash"` | 压缩摘要用哪个模型。留空则沿用 DSH 的摘要模型设置（通常是主模型，贵得多）|
 | `anthropicSummaryMaxTokens` | `16384` | 压缩摘要的输出上限，范围 `512..16384` |

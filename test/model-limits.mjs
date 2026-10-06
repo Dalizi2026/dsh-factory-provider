@@ -71,3 +71,16 @@ test('limits: output ceilings preserve smaller requests and apply to each wire p
   }
   const p={model:'custom',max_tokens:200000};clampFactoryOutputTokens('factory-a',p);assert.equal(p.max_tokens,200000);
 });
+
+test('limits: GLM Flash keeps ZCode safety space inside the Factory input envelope', () => {
+  const limits = factoryModelLimits('factory-g', 'glm-5.3-flash');
+  const budget = (contextWindow = limits.contextWindow, maxTokens = limits.maxOutputTokens, thresholdTokens = 900000) =>
+    alignedCompactionBudget({ limits, contextWindow, maxTokens, thresholdTokens, headroomTokens: 13000 });
+  assert.deepEqual(budget(), { threshold: 900000, target: 585000, inputBudget: 917504 });
+  assert.equal(budget(undefined, undefined, 966000).threshold, 904504);
+  assert.equal(budget(200000, 64000).threshold, 123000);
+  assert.equal(budget(1048576, 200000).threshold, 835576);
+  assert.equal(budget(undefined, undefined, 250000).threshold, 250000);
+  assert.throws(() => budget(140000, 131072), /safe input budget/);
+  assert.throws(() => alignedCompactionBudget({ limits, contextWindow: 1048576, maxTokens: 131072, thresholdTokens: 900000, headroomTokens: -1 }), /invalid/);
+});

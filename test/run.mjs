@@ -1107,6 +1107,7 @@ test("config: every settings-editable field is volatile", () => {
     "keyEnv",
     "proactiveRefreshMinutes",
     "modelAllowlist",
+    "glmFlashCompactionTokens",
   ]) {
     assert.equal(Config.dict?.[name]?.meta?.volatile, true, `${name} must be .volatile()`);
   }
@@ -1494,6 +1495,35 @@ function makeSettingsMock() {
 }
 
 /** Let queued reconcile/cleanup work finish before the test ends. */
+test('settings bridge: model thresholds persist, return metadata and reject unsafe edits without replacing saved choices', async () => {
+  const settings=makeSettingsMock(), handlers=new Map();let dispose;
+  const base={enabled:true,proactiveRefreshMinutes:0};settings.state.source=base;
+  const mutate=settings.mutate;
+  settings.mutate=async(ns,ops)=>{
+    if(ns==='dsh-factory-provider') {
+      const current={...base,modelCompactionTokens:settings.state.source.modelCompactionTokens?.get?.()??settings.state.source.modelCompactionTokens??{}};
+      for(const op of ops) { assert.equal(op.op,'set');assert.equal(op.path.length,1);current[op.path[0]]=op.value; }
+      settings.hooks.validate(current);settings.state.source=Config(current);settings.hooks.onChange();
+    } else await mutate(ns,ops);
+  };
+  const sctx={settings,webServer:{port:19387,register:r=>{handlers.set(r.path,r.handler);return()=>handlers.delete(r.path);}},effect:fn=>{fn();return()=>{};},on:()=>()=>{}};
+  const ctx={logger:{info(){},warn(){}},get:()=>undefined,emit(){},inject:(_services,fn)=>{const d=fn(sctx);if(typeof d==='function')dispose=d;return()=>{};}};
+  apply(ctx,base);await settle();
+  const path='/api/dsh-factory-provider/config';
+  const post=async value=>JSON.parse((await invokeRoute(handlers,path,{method:'POST',body:{ops:[{op:'set',path:['modelCompactionTokens'],value}]}})).body);
+  assert.equal((await post({'glm-5.3':500000,'qwen3.8-max':110000})).ok,true);
+  const saved=JSON.parse((await invokeRoute(handlers,path)).body);
+  assert.equal(saved.value.config.modelCompactionTokens['glm-5.3'],500000);
+  const qwen=saved.value.routes.generic.models.find(m=>m.id==='qwen3.8-max');
+  assert.equal(qwen.compaction.defaultThreshold,118000);assert.equal(qwen.compaction.smallerChannel,true);
+  assert.equal((await post({'qwen3.8-max':200000})).ok,false);
+  const after=JSON.parse((await invokeRoute(handlers,path)).body);
+  assert.equal(after.value.config.modelCompactionTokens['glm-5.3'],500000,'failed save keeps prior config');
+  assert.equal((await post({})).ok,true,'clearing overrides restores defaults');
+  assert.deepEqual(JSON.parse((await invokeRoute(handlers,path)).body).value.config.modelCompactionTokens,{});
+  dispose?.();await settle();
+});
+
 async function settle(times = 4) {
   for (let i = 0; i < times; i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
 }
