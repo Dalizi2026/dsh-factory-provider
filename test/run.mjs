@@ -642,7 +642,7 @@ test("gateway: a failed upstream fetch is journaled and answered, not swallowed"
   await withEnv({ FACTORY_API_KEY: home }, async () => {
     const result = await gateway.probe("generic", "glm-5.3-flash");
     assert.equal(result.status, 502);
-    assert.match(result.body, /failed before reaching Factory/);
+    assert.match(result.body, /failed during awaiting-upstream-headers/);
     const added = readJournal(100000).slice(before);
     const record = added.find((entry) => entry.event === "handler-error");
     assert.ok(record, "handler-error record is journaled");
@@ -740,7 +740,7 @@ test("gateway: anthropic route injects credential/headers, rewrites body, stream
 
     const sent = upstream.seen[0];
     assert.equal(sent.headers.authorization, `Bearer ${home}`);
-    assert.equal(sent.headers["x-api-provider"], "bedrock_anthropic");
+    assert.equal(sent.headers["x-api-provider"], "anthropic"); // Fast variants are direct-Anthropic only.
     assert.equal(sent.headers["x-api-key"], "placeholder");
     assert.equal(sent.headers["x-stainless-package-version"], "0.70.1");
     assert.equal(sent.headers["user-agent"], "factory-cli/0.231.0");
@@ -2438,16 +2438,18 @@ test("gateway: usage is collected from a streamed reply without buffering it", a
 });
 
 test('token statistics: chat and Responses input includes cached tokens only once, no-usage replies create no row', async t => {
+  const statsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'factory-stat-route-'));
+  t.after(() => fs.rmSync(statsDir, { recursive: true, force: true }));
   const upstream = await startMockUpstream(t, (record, res) => {
-    const usage = record.body.model === 'stats-chat' ?
+    const usage = record.body.model === 'glm-5.3-flash' ?
       { prompt_tokens: 1000, completion_tokens: 10, prompt_tokens_details: { cached_tokens: 800 } } :
       { input_tokens: 900, output_tokens: 20, input_tokens_details: { cached_tokens: 700 } };
     res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(record.body.model === 'stats-no-usage' ? { content: 'ok' } : { usage }));
+    res.end(JSON.stringify(record.body.model === 'qwen3.8-max' ? { content: 'ok' } : { usage }));
   });
   const gateway = await startGateway(t, { upstreamBaseURL: upstream.baseURL, enabledRoutes: ['generic', 'openai'] });
-  await withEnv({ FACTORY_API_KEY: `fk-offline-${'x'.repeat(40)}` }, async () => {
-    for (const [route, model] of [['generic', 'stats-chat'], ['openai', 'stats-responses'], ['generic', 'stats-no-usage']]) {
+  await withEnv({ FACTORY_API_KEY: `fk-offline-${'x'.repeat(40)}`, DSH_FACTORY_USAGE_DIR: statsDir }, async () => {
+    for (const [route, model] of [['generic', 'glm-5.3-flash'], ['openai', 'gpt-6-luna'], ['generic', 'qwen3.8-max']]) {
       const reply = await fetch(`${gateway.baseURL}/api/dsh-factory-provider/${route === 'generic' ? 'o' : 'openai'}/v1/${route === 'generic' ? 'chat/completions' : 'responses'}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ model, stream: false, messages: [{ role: 'user', content: 'offline fixture' }], input: 'offline fixture', max_tokens: 32 }),
@@ -2456,10 +2458,10 @@ test('token statistics: chat and Responses input includes cached tokens only onc
     }
     await settle();
     const rows = readTokenStats({ range: '30d' }).rows;
-    const chat = rows.find(row => row.model === 'stats-chat'), response = rows.find(row => row.model === 'stats-responses');
+    const chat = rows.find(row => row.model === 'glm-5.3-flash'), response = rows.find(row => row.model === 'gpt-6-luna');
     assert.equal(chat.input, 200); assert.equal(chat.read, 800); assert.equal(chat.write, null); assert.equal(chat.output, 10); assert.equal(chat.total, 1010);
     assert.equal(response.input, 200); assert.equal(response.read, 700); assert.equal(response.output, 20); assert.equal(response.total, 920);
-    assert.equal(rows.some(row => row.model === 'stats-no-usage'), false);
+    assert.equal(rows.some(row => row.model === 'qwen3.8-max'), false);
   });
 });
 

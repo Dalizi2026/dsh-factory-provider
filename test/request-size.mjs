@@ -70,7 +70,7 @@ test('usage diagnostics: OpenAI cache reads are part of total input, Responses i
  for(const [route,usage] of [['o/v1/chat/completions',{prompt_tokens:1000,prompt_tokens_details:{cached_tokens:800},completion_tokens:10}],['openai/v1/responses',{input_tokens:1000,input_tokens_details:{cached_tokens:800},output_tokens:10}]]){
   const f=await fixture(t,{fetchImpl:async()=>new Response(`data: ${JSON.stringify({usage})}\n\n`,{headers:{'content-type':'text/event-stream'}})});
   const body=route.includes('responses')?{model:'gpt-6-sol',input:[{role:'user',content:'hello'}]}:{model:'glm-5.3-flash',messages:[{role:'user',content:'hello'}]};
-  const response=await f.post(route,body);await response.text();const record=readJournal(1)[0];
+  const response=await f.post(route,body);await response.text();const record=readJournal(100).findLast(entry=>entry.event==='usage');
   assert.equal(record.event,'usage');assert.equal(record.input,200);assert.equal(record.read,800);assert.equal(record.totalInput,1000);assert.equal(record.hitRatio,0.8);
  }
 });

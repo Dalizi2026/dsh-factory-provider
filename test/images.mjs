@@ -46,18 +46,31 @@ test('multi-image preparation: long text triggers history recovery; abort stops 
  const controller=new AbortController();controller.abort();const native=store();await assert.rejects(prepareAdaptiveImages({...options(3),signal:controller.signal},profile,native));assert.equal(native.calls.length,0);
 });
 
-async function nativeFixture({config={},storeImpl=store()}={}){
+async function nativeFixture({config={},storeImpl=store(),sdkEvents}={}){
  const [{Context},{PiAiAdapter}]=await Promise.all([host('cordis'),host('dsh-llm-pi-ai')]);
  const ctx=new Context(),seen=[],headers=[],profiles=new Map();let settings=config;
  for(const provider of ['factory-a','factory-g','factory-o','unrelated'])profiles.set(provider,{...profile,modelErrors:new Map(),configuredMaxTokens:new Map(),streamIdleTimeoutMs:60000});
  const model={id:'claude-sonnet-5-5',name:'fixture',api:'anthropic-messages',provider:'offline',input:['text','image'],contextWindow:1000000,maxTokens:128000,reasoning:false};
- const models={getModel:(_provider,id)=>({...model,id}),streamSimple:async function*(_model,context,sdk){seen.push(context);headers.push(sdk.headers);yield {type:'done',reason:'stop',message:{role:'assistant',content:[{type:'text',text:'ok'}],stopReason:'stop',usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2},api:'anthropic-messages',provider:'offline',model:'fixture'}};}};
+ const models={getModel:(_provider,id)=>({...model,id}),streamSimple:async function*(_model,context,sdk){seen.push(context);headers.push(sdk.headers);if(sdkEvents){yield* sdkEvents(seen.length);return;}yield {type:'done',reason:'stop',message:{role:'assistant',content:[{type:'text',text:'ok'}],stopReason:'stop',usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2},api:'anthropic-messages',provider:'offline',model:'fixture'}};}};
  const adapter=new PiAiAdapter({profiles:()=>profiles,resolveApiKey:async()=>undefined,resolveAttachments:()=>storeImpl});
  adapter.snapshot={profiles,models};ctx.provide('llm',{registration:()=>({adapter})});const state={},records=[];
  const dispose=installAdaptiveImages(ctx,()=>settings,state,r=>records.push(r));await new Promise(resolve=>setImmediate(resolve));
  return {ctx,adapter,profiles,seen,headers,state,records,store:storeImpl,dispose,setConfig:c=>{settings=c;}};
 }
 async function consume(stream){const chunks=[];for await(const chunk of stream)chunks.push(chunk);return chunks;}
+test('real native PiAiAdapter: overload is retryable before content even with image preparation off', {skip}, async()=>{
+ const f=await nativeFixture({config:{factoryAdaptiveImages:false},sdkEvents:async function*(){yield {type:'error',error:{role:'assistant',content:[],stopReason:'error',errorMessage:'{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}',usage:{input:0,output:0,cacheRead:0,cacheWrite:0,totalTokens:0},api:'anthropic-messages',provider:'offline',model:'fixture'}};}});
+ try{const result=await consume(f.adapter.stream({...options(0),sessionId:'retry-overload'}));assert.equal(result.at(-1).reason.failure.code,'SERVER');assert.equal(f.seen.length,1);}finally{f.dispose();}
+});
+test('real native PiAiAdapter: timeout tickets reach only the next call of the same GLM session', {skip}, async()=>{
+ const f=await nativeFixture({config:{factoryAdaptiveImages:false},sdkEvents:async function*(n){if(n===1)yield {type:'error',error:{role:'assistant',content:[],stopReason:'error',errorMessage:'pi-ai stream idle timeout after 300000ms',usage:{input:0,output:0,cacheRead:0,cacheWrite:0,totalTokens:0},api:'anthropic-messages',provider:'offline',model:'fixture'}};else yield {type:'done',message:{role:'assistant',content:[{type:'text',text:'ok'}],stopReason:'stop',usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2},api:'anthropic-messages',provider:'offline',model:'fixture'}};}});
+ try{const request={...options(0),provider:'factory-g',model:'glm-5.3-flash',sessionId:'retry-glm'};
+ const failed=await consume(f.adapter.stream(request));assert.equal(failed.at(-1).reason.failure.code,'TIMEOUT');
+ await consume(f.adapter.stream({...request,sessionId:'other'}));assert.equal(f.headers[1]['x-dsh-factory-previous-transport-failure'],undefined);
+ await consume(f.adapter.stream(request));assert.equal(f.headers[2]['x-dsh-factory-previous-transport-failure'],f.headers[0]['x-dsh-factory-attempt']);
+ assert.equal(f.profiles.get('factory-g').headers,undefined);assert(f.headers[0]['x-dsh-factory-session']);
+ }finally{f.dispose();}
+});
 test('real native adapter: summary metadata is scoped to text/image compaction, including image opt-out', {skip}, async()=>{
  const f=await nativeFixture({config:{factoryAdaptiveImages:false}});try{
   f.profiles.get('factory-a').headers={'x-existing':'fixture'};

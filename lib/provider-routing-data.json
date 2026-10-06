@@ -1,0 +1,694 @@
+{
+  "source": {
+    "cliVersion": "0.233.0",
+    "routingSnapshotDate": "2026-10-06",
+    "routingSnapshot": "official desktop feature flags; refreshed per API key at runtime"
+  },
+  "providerRegions": {
+    "anthropic": [
+      "global",
+      "us"
+    ],
+    "vertex_anthropic": [
+      "global",
+      "eu",
+      "us"
+    ],
+    "bedrock_anthropic": [
+      "global",
+      "eu",
+      "us"
+    ],
+    "bedrock_converse": [
+      "global"
+    ],
+    "bedrock_openai": [
+      "global",
+      "eu",
+      "us"
+    ],
+    "bedrock": [
+      "global",
+      "eu",
+      "us"
+    ],
+    "openai": [
+      "global",
+      "eu",
+      "us"
+    ],
+    "azure_openai": [
+      "global"
+    ],
+    "azure_anthropic": [
+      "global"
+    ],
+    "google": [
+      "global",
+      "us"
+    ],
+    "xai": [
+      "global",
+      "us"
+    ],
+    "mistral": [
+      "global"
+    ],
+    "fireworks": [
+      "global"
+    ],
+    "baseten": [
+      "global",
+      "us"
+    ],
+    "together": [
+      "global"
+    ],
+    "snowflake": [
+      "global"
+    ],
+    "databricks": [
+      "global"
+    ]
+  },
+  "config": {
+    "version": 1,
+    "defaults": {
+      "anthropic": [
+        "snowflake",
+        "azure_anthropic",
+        "bedrock_anthropic",
+        "anthropic",
+        "vertex_anthropic"
+      ],
+      "openai": [
+        "azure_openai",
+        "openai"
+      ],
+      "factory": [
+        "baseten",
+        "fireworks"
+      ]
+    },
+    "models": {
+      "claude-sonnet-5": [
+        "snowflake",
+        "azure_anthropic",
+        "bedrock_anthropic",
+        "anthropic",
+        "vertex_anthropic"
+      ],
+      "claude-sonnet-5-5": [
+        "anthropic"
+      ],
+      "claude-opus-4-6": [
+        "snowflake",
+        "azure_anthropic",
+        "bedrock_anthropic",
+        "anthropic",
+        "vertex_anthropic"
+      ],
+      "claude-opus-4-8": [
+        "snowflake",
+        "azure_anthropic",
+        "bedrock_anthropic",
+        "anthropic",
+        "vertex_anthropic"
+      ],
+      "claude-opus-5": [
+        "azure_anthropic",
+        "snowflake",
+        "bedrock_anthropic",
+        "vertex_anthropic",
+        "anthropic"
+      ],
+      "claude-opus-5-5": [
+        "bedrock_anthropic",
+        "snowflake",
+        "azure_anthropic",
+        "anthropic"
+      ],
+      "claude-fable-5": [
+        "bedrock_anthropic",
+        "anthropic",
+        "vertex_anthropic"
+      ],
+      "claude-fable-5.1": [
+        "anthropic"
+      ],
+      "gpt-5-2025-08-07": [
+        "openai"
+      ],
+      "gpt-5-codex": [
+        "openai"
+      ],
+      "gpt-5.1": [
+        "openai"
+      ],
+      "gpt-5.1-codex": [
+        "openai"
+      ],
+      "gpt-5.2": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.3-codex": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.4": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.4-fast": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.4-mini": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.4-mini-fast": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.5": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.5-fast": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.6-sol": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.6-sol-fast": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.6-terra": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.6-terra-flex": [
+        "openai"
+      ],
+      "gpt-5.6-luna": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-5.6-luna-flex": [
+        "openai"
+      ],
+      "gpt-6-astra": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-6-sol": [
+        "azure_openai",
+        "openai"
+      ],
+      "gpt-6-luna": [
+        "azure_openai",
+        "openai"
+      ],
+      "grok-4.6": [
+        "xai"
+      ],
+      "grok-4.7": [
+        "xai"
+      ],
+      "kimi-k2.7-code": [
+        "baseten",
+        "fireworks"
+      ],
+      "kimi-k3": [
+        "fireworks",
+        "baseten"
+      ],
+      "deepseek-v4-flash-0731": [
+        "fireworks",
+        "baseten"
+      ],
+      "deepseek-v4.1-flash": [
+        "baseten",
+        "fireworks"
+      ],
+      "deepseek-v4-pro": [
+        "fireworks",
+        "baseten"
+      ],
+      "minimax-m3": [
+        "baseten",
+        "fireworks"
+      ],
+      "glm-5.1": [
+        "baseten",
+        "fireworks"
+      ],
+      "glm-5.2": [
+        "baseten"
+      ],
+      "glm-5.2-fast": [
+        "baseten",
+        "fireworks"
+      ],
+      "glm-5.3": [
+        "baseten",
+        "fireworks"
+      ],
+      "glm-5.3-flash": [
+        "fireworks",
+        "baseten"
+      ],
+      "inkling": [
+        "baseten",
+        "fireworks"
+      ],
+      "nemotron-3-ultra": [
+        "baseten",
+        "fireworks"
+      ]
+    },
+    "blockedProviders": {}
+  },
+  "models": {
+    "claude-sonnet-4-6": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ]
+    },
+    "claude-sonnet-5": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic"
+      ]
+    },
+    "claude-sonnet-5-5": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic"
+      ]
+    },
+    "claude-opus-4-7": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "bedrock_anthropic"
+        ]
+      }
+    },
+    "claude-opus-4-8": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic",
+        "snowflake"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "bedrock_anthropic"
+        ]
+      }
+    },
+    "claude-opus-4-8-fast": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic"
+      ]
+    },
+    "claude-opus-5": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic",
+        "snowflake"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "bedrock_anthropic"
+        ]
+      }
+    },
+    "claude-opus-5-fast": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic"
+      ]
+    },
+    "claude-opus-5-5": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic",
+        "snowflake"
+      ]
+    },
+    "claude-opus-5-5-fast": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic"
+      ]
+    },
+    "claude-fable-5": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ],
+      "regionOverrides": {
+        "eu": []
+      }
+    },
+    "claude-fable-5.1": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ],
+      "regionOverrides": {
+        "eu": []
+      }
+    },
+    "claude-haiku-4-5-20251001": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ],
+      "regionOverrides": {
+        "us": [
+          "vertex_anthropic",
+          "bedrock_anthropic"
+        ]
+      }
+    },
+    "gpt-5.2": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "azure_openai"
+      ]
+    },
+    "gpt-5.3-codex": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {
+        "us": []
+      }
+    },
+    "gpt-5.4": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      }
+    },
+    "gpt-5.4-fast": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "azure_openai"
+      ]
+    },
+    "gpt-5.4-mini": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "azure_openai"
+      ]
+    },
+    "gpt-5.4-mini-fast": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "azure_openai"
+      ]
+    },
+    "gpt-5.5": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "snowflake",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      }
+    },
+    "gpt-5.5-fast": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "azure_openai"
+      ]
+    },
+    "gpt-5.6-sol": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "snowflake",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      }
+    },
+    "gpt-5.6-sol-fast": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "azure_openai"
+      ]
+    },
+    "gpt-5.6-terra": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "snowflake",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      }
+    },
+    "gpt-5.6-luna": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "snowflake",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      }
+    },
+    "gpt-6-astra": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "bedrock_openai",
+        "snowflake",
+        "azure_openai"
+      ],
+      "regionOverrides": {
+        "eu": []
+      }
+    },
+    "gpt-6-sol": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      }
+    },
+    "gpt-6-luna": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      }
+    },
+    "kimi-k3": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks",
+        "baseten",
+        "databricks"
+      ]
+    },
+    "qwen3.8-max": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks"
+      ]
+    },
+    "deepseek-v4-flash-0731": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks",
+        "baseten"
+      ]
+    },
+    "deepseek-v4-pro": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks",
+        "baseten"
+      ]
+    },
+    "minimax-m2.7": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks"
+      ]
+    },
+    "minimax-m3": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks"
+      ]
+    },
+    "glm-5.3": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks",
+        "baseten",
+        "mistral",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "global": [
+          "fireworks",
+          "baseten",
+          "databricks"
+        ],
+        "eu": [
+          "mistral"
+        ]
+      }
+    },
+    "glm-5.3-flash": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks",
+        "baseten",
+        "databricks"
+      ]
+    },
+    "inkling": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks"
+      ]
+    },
+    "nemotron-3-ultra": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "baseten",
+        "fireworks"
+      ]
+    }
+  }
+}
