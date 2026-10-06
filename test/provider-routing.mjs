@@ -41,7 +41,7 @@ test('Anthropic preference never bypasses account order, blocked providers, or r
   }
 });
 
-test('saved preference changes reset only Claude affinity, preserve Core/GPT locks, and do not reset on unchanged saves', async () => {
+test('saved preference changes affect new sessions only; existing Claude/Core/GPT sessions stay on their healthy upstream', async () => {
   const router = createProviderRouter();
   const claude = await router.select(selectArgs()); claude.success();
   const coreArgs = selectArgs({ model: 'glm-5.3-flash', route: 'generic' });
@@ -49,13 +49,17 @@ test('saved preference changes reset only Claude affinity, preserve Core/GPT loc
   const gptArgs = selectArgs({ model: 'gpt-5.5', route: 'openai' });
   (await router.select(gptArgs)).failure(); const gpt = await router.select(gptArgs); gpt.success();
   router.configure({ preferAnthropic: true });
-  const preferred = await router.select(selectArgs()); assert.equal(preferred.provider, 'anthropic'); preferred.success();
+  assert.equal((await router.select(selectArgs())).provider, 'bedrock_anthropic');
+  const newArgs = selectArgs({ session: 'new-with-preference' });
+  const preferred = await router.select(newArgs); assert.equal(preferred.provider, 'anthropic'); preferred.success();
   assert.equal((await router.select(coreArgs)).provider, 'baseten');
   assert.equal((await router.select(gptArgs)).provider, gpt.provider);
   router.configure({ preferAnthropic: true });
   assert.equal((await router.select(selectArgs())).source, 'session_lock');
   router.configure({ preferAnthropic: false });
   assert.equal((await router.select(selectArgs())).provider, 'bedrock_anthropic');
+  assert.equal((await router.select(newArgs)).provider, 'anthropic');
+  assert.equal((await router.select(selectArgs({ session: 'new-with-default' }))).provider, 'bedrock_anthropic');
   assert.equal((await router.select(coreArgs)).provider, 'baseten');
 });
 
@@ -182,20 +186,24 @@ async function server(t, fetchImpl, extra = {}) {
   } };
 }
 const sse = events => new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } });
-test('gateway hot preference applies next request, preserves Factory endpoint/cache payload, and falls back after 503', async t => {
+test('gateway preference starts new threads on Anthropic, keeps existing threads stable, and falls back after 503', async t => {
   const seen = [];
   const gw = await server(t, async (url, init) => {
     seen.push({ url, headers: init.headers, body: init.body });
-    if (seen.length === 3) return Response.json({ error: { message: 'Overloaded' } }, { status: 503 });
+    if (seen.length === 4) return Response.json({ error: { message: 'Overloaded' } }, { status: 503 });
     return sse([{ type: 'message_stop' }]);
   });
   await gw.call();
-  gw.configure({ preferAnthropic: true }); await gw.call(); await gw.call(); await gw.call(); await gw.call();
-  gw.configure({ preferAnthropic: false }); await gw.call();
-  assert.deepEqual(seen.map(r => r.headers['x-api-provider']), ['bedrock_anthropic', 'anthropic', 'anthropic', 'bedrock_anthropic', 'bedrock_anthropic', 'bedrock_anthropic']);
+  gw.configure({ preferAnthropic: true }); await gw.call();
+  const newThread = { messages: [{ role: 'user', content: 'different first message for a new thread' }] };
+  await gw.call(newThread); assert.equal((await gw.call(newThread)).status, 503);
+  await gw.call(newThread); await gw.call(newThread);
+  gw.configure({ preferAnthropic: false }); await gw.call(newThread);
+  assert.deepEqual(seen.map(r => r.headers['x-api-provider']), ['bedrock_anthropic', 'bedrock_anthropic', 'anthropic', 'anthropic', 'bedrock_anthropic', 'bedrock_anthropic', 'bedrock_anthropic']);
   assert(seen.every(r => r.url.startsWith('https://prem.factory.ai/')));
-  assert(seen.every(r => r.body === seen[0].body));
-  assert.equal(new Set(seen.map(r => r.headers['x-session-id'])).size, 1);
+  assert.equal(seen[0].body, seen[1].body);
+  assert(seen.slice(2).every(r => r.body === seen[2].body));
+  assert.equal(new Set(seen.slice(2).map(r => r.headers['x-session-id'])).size, 1);
 });
 test('gateway 503 -> Snowflake 500 -> Azure success and next turn locks Azure; each call sends one request and preserves cache body', async t => {
   const seen = [];

@@ -6,11 +6,11 @@ import vm from 'node:vm';
 function render(config, which = 'config', status) {
   let registration;
   const source = fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
-    .replace('exports.apply = apply;', 'exports.apply = apply; exports.testConfigCard = ConfigCard; exports.testContextCard = ContextCard; exports.testRoutingCard = RoutingCard; exports.testConfigOperations = configOperations;');
+    .replace('exports.apply = apply;', 'exports.apply = apply; exports.testConfigCard = ConfigCard; exports.testContextCard = ContextCard; exports.testConfigOperations = configOperations;');
   vm.runInNewContext(source, { window: { __ModuleLoader__: { load: entry => { registration = entry; } } } });
   const react = { createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }) };
   const module = registration.factory(() => react);
-  const component = module[which === 'routing' ? 'testRoutingCard' : which === 'context' ? 'testContextCard' : 'testConfigCard'];
+  const component = module[which === 'context' ? 'testContextCard' : 'testConfigCard'];
   const changes = [];
   const tree = component({ t: key => key, config, status, routes: {
     anthropic: { providerKey: 'factory-a', models: [{ id: 'opus', name: 'Opus' }] },
@@ -24,10 +24,9 @@ function render(config, which = 'config', status) {
   return { nodes, changes, operations: module.testConfigOperations };
 }
 
-test('routing UI: visible card defaults off, edits a boolean and persists both on and off', () => {
-  const f = render({}, 'routing');
-  assert.equal(f.nodes[0].props.id, 'routing'); assert.equal(f.nodes[0].props.defaultOpen, true);
-  const checkbox = f.nodes.find(n => n.type === 'input' && n.props.type === 'checkbox');
+test('routing UI: Advanced checkbox defaults off, edits a boolean and persists both on and off', () => {
+  const f = render({});
+  const checkbox = f.nodes.find(n => n.type === 'label' && n.children.includes('configPreferAnthropic')).children[0];
   assert.equal(checkbox.props.checked, false); checkbox.props.onChange({ target: { checked: true } });
   assert.deepEqual(f.changes, [{ field: 'anthropicPreferOfficial', value: true }]);
   for (const value of [true, false]) {
@@ -40,10 +39,10 @@ test('routing UI: visible card defaults off, edits a boolean and persists both o
 
 test('routing UI: explains unavailable official candidate after a Claude request', () => {
   const status = { providerRouting: { preferAnthropic: true, lastClaudeSelection: { model: 'opus', preferenceReason: 'anthropic_unavailable' } } };
-  const f = render({ anthropicPreferOfficial: true }, 'routing', status);
+  const f = render({ anthropicPreferOfficial: true }, 'config', status);
   assert(f.nodes.some(n => n.props.role === 'status' && n.children.includes('routingAnthropicUnavailable')));
   status.providerRouting.preferAnthropic = false;
-  assert(!render({}, 'routing', status).nodes.some(n => n.props.role === 'status'));
+  assert(!render({}, 'config', status).nodes.some(n => n.props.role === 'status'));
 });
 
 test('context UI: summary selector lists enabled visible models and emits a model change', () => {
