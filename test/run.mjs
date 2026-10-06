@@ -1108,6 +1108,7 @@ test("config: every settings-editable field is volatile", () => {
     "proactiveRefreshMinutes",
     "modelAllowlist",
     "glmFlashCompactionTokens",
+    "anthropicPreferOfficial",
   ]) {
     assert.equal(Config.dict?.[name]?.meta?.volatile, true, `${name} must be .volatile()`);
   }
@@ -1563,6 +1564,31 @@ function invokeRoute(handlers, path, { method = "GET", body, remoteAddress = "12
     void handler(req, res);
   });
 }
+
+test('settings bridge: Anthropic preference defaults off, persists volatile values, and hot-applies without restart', async () => {
+  const settings = makeSettingsMock(), handlers = new Map(); let dispose;
+  settings.state.source = { enabled: true, proactiveRefreshMinutes: 0 };
+  const mutate = settings.mutate;
+  settings.mutate = async (ns, ops) => {
+    if (ns !== 'dsh-factory-provider') return mutate(ns, ops);
+    const current = { enabled: true, proactiveRefreshMinutes: 0 };
+    for (const op of ops) current[op.path[0]] = op.value;
+    settings.hooks.validate(current); settings.state.source = Config(current); settings.hooks.onChange();
+  };
+  const sctx = { settings, webServer: { port: 19387, register: r => { handlers.set(r.path, r.handler); return () => handlers.delete(r.path); } }, effect: fn => { fn(); return () => {}; }, on: () => () => {} };
+  const ctx = { logger: { info() {}, warn() {} }, get: () => undefined, emit() {}, inject: (_services, fn) => { const d = fn(sctx); if (typeof d === 'function') dispose = d; return () => {}; } };
+  try {
+    apply(ctx, settings.state.source); await settle();
+    const read = async suffix => JSON.parse((await invokeRoute(handlers, `/api/dsh-factory-provider/${suffix}`)).body);
+    assert.equal((await read('config')).value.config.anthropicPreferOfficial, false);
+    for (const value of [true, false]) {
+      const saved = JSON.parse((await invokeRoute(handlers, '/api/dsh-factory-provider/config', { method: 'POST', body: { ops: [{ op: 'set', path: ['anthropicPreferOfficial'], value }] } })).body);
+      assert.equal(saved.ok, true); await settle();
+      assert.equal((await read('config')).value.config.anthropicPreferOfficial, value);
+      assert.equal((await read('status')).providerRouting.preferAnthropic, value);
+    }
+  } finally { dispose?.(); await settle(); }
+});
 
 test("settings: a change that arrives before the runtime is live is applied once it is", async (t) => {
   // The onChange hook cannot call into the webServer half before that half

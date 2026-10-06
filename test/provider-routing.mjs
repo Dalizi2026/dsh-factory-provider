@@ -16,6 +16,49 @@ const credential = { token: 'fk-offline-routing-fixture' };
 const selectArgs = (overrides = {}) => ({ credential, model: 'claude-opus-5-5', route: 'anthropic', session: 'fixture-session', host: 'https://offline.invalid', ...overrides });
 const cloneConfig = () => structuredClone(data.config);
 
+test('Anthropic preference reorders only eligible Claude candidates; fallback success stays sticky', async () => {
+  const router = createProviderRouter({ preferAnthropic: true });
+  const first = await router.select(selectArgs());
+  assert.equal(first.provider, 'anthropic'); assert.equal(first.source, 'preferred_order');
+  assert.deepEqual(first.order, ['anthropic', 'bedrock_anthropic', 'snowflake', 'azure_anthropic']);
+  first.failure();
+  const fallback = await router.select(selectArgs()); assert.equal(fallback.provider, 'bedrock_anthropic'); fallback.success();
+  assert.equal((await router.select(selectArgs())).provider, 'bedrock_anthropic');
+  assert.equal((await router.select(selectArgs({ session: 'new' }))).provider, 'anthropic');
+});
+
+test('Anthropic preference never bypasses account order, blocked providers, or region limits', async () => {
+  for (const restriction of ['unconfigured', 'blocked', 'region']) {
+    const config = cloneConfig();
+    if (restriction === 'unconfigured') config.models['claude-opus-5-5'] = ['bedrock_anthropic'];
+    if (restriction === 'blocked') config.blockedProviders['claude-opus-5-5'] = ['anthropic'];
+    const router = createProviderRouter({ config, preferAnthropic: true });
+    const args = restriction === 'region' ? { model: 'claude-opus-5', region: 'eu' } : {};
+    const selection = await router.select(selectArgs(args));
+    assert.notEqual(selection.provider, 'anthropic', restriction);
+    assert.equal(selection.preferenceReason, 'anthropic_unavailable');
+    assert.equal(router.status().lastClaudeSelection.preferenceReason, 'anthropic_unavailable');
+  }
+});
+
+test('saved preference changes reset only Claude affinity, preserve Core/GPT locks, and do not reset on unchanged saves', async () => {
+  const router = createProviderRouter();
+  const claude = await router.select(selectArgs()); claude.success();
+  const coreArgs = selectArgs({ model: 'glm-5.3-flash', route: 'generic' });
+  (await router.select(coreArgs)).failure(); (await router.select(coreArgs)).success();
+  const gptArgs = selectArgs({ model: 'gpt-5.5', route: 'openai' });
+  (await router.select(gptArgs)).failure(); const gpt = await router.select(gptArgs); gpt.success();
+  router.configure({ preferAnthropic: true });
+  const preferred = await router.select(selectArgs()); assert.equal(preferred.provider, 'anthropic'); preferred.success();
+  assert.equal((await router.select(coreArgs)).provider, 'baseten');
+  assert.equal((await router.select(gptArgs)).provider, gpt.provider);
+  router.configure({ preferAnthropic: true });
+  assert.equal((await router.select(selectArgs())).source, 'session_lock');
+  router.configure({ preferAnthropic: false });
+  assert.equal((await router.select(selectArgs())).provider, 'bedrock_anthropic');
+  assert.equal((await router.select(coreArgs)).provider, 'baseten');
+});
+
 test('all 38 catalog models have audited routing and each selected backend belongs to its model', () => {
   assert.equal(Object.keys(data.models).length, 38);
   for (const [route, entry] of Object.entries(ROUTES)) for (const model of entry.models) {
@@ -76,6 +119,22 @@ test('API-key flags override desktop snapshot, are key scoped, deduplicated and 
   assert.equal(calls, 2); clock += 300001; await router.select(args); assert.equal(calls, 3);
   assert(!JSON.stringify(router.status()).includes('secret')); assert(!JSON.stringify(router.status()).includes(credential.token));
 });
+test('healthy session never switches on routing config refresh or recovered upstream order, including long idle gaps', async () => {
+  let clock = 1, calls = 0;
+  const router = createProviderRouter({ preferAnthropic: true, now: () => clock, fetchConfig: async () => {
+    calls++; const config = cloneConfig();
+    if (calls > 1) config.models['claude-opus-5-5'] = ['azure_anthropic', 'anthropic', 'bedrock_anthropic', 'snowflake'];
+    return Response.json({ configs: { provider_routing: config } });
+  } });
+  (await router.select(selectArgs())).failure();
+  const fallback = await router.select(selectArgs()); assert.equal(fallback.provider, 'bedrock_anthropic'); fallback.success();
+  clock += 3600001;
+  const afterRefresh = await router.select(selectArgs());
+  assert.equal(calls, 2); assert.equal(afterRefresh.provider, 'bedrock_anthropic');
+  assert.equal(afterRefresh.source, 'session_lock'); afterRefresh.success();
+  assert.equal((await router.select(selectArgs())).provider, 'bedrock_anthropic');
+  assert.equal((await router.select(selectArgs({ session: 'new' }))).provider, 'anthropic');
+});
 test('routing config outage retains last verified account order; fresh downloads fall back without local Droid', async () => {
   let clock = 1, available = true;
   const router = createProviderRouter({ now: () => clock, fetchConfig: async () => {
@@ -115,7 +174,7 @@ async function server(t, fetchImpl, extra = {}) {
   const host = http.createServer((req, res) => { const route = gw.routes.find(r => r.path === req.url); if (route) void route.handler(req, res); else { res.statusCode = 404; res.end(); } });
   await new Promise(resolve => host.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => { host.close(resolve); host.closeAllConnections(); }));
-  return { async call({ route = 'anthropic', model = 'claude-opus-5-5', headers = {}, ...body } = {}) {
+  return { configure: gw.configure, async call({ route = 'anthropic', model = 'claude-opus-5-5', headers = {}, ...body } = {}) {
     const tail = route === 'anthropic' ? 'a/v1/messages' : route === 'generic' ? 'o/v1/chat/completions' : 'openai/v1/responses';
     const response = await fetch(`http://127.0.0.1:${host.address().port}/factory/${tail}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers },
       body: JSON.stringify({ model, stream: true, max_tokens: 32, system: 'fixed-prefix', messages: [{ role: 'user', content: 'hello' }], ...body }) });
@@ -123,6 +182,21 @@ async function server(t, fetchImpl, extra = {}) {
   } };
 }
 const sse = events => new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } });
+test('gateway hot preference applies next request, preserves Factory endpoint/cache payload, and falls back after 503', async t => {
+  const seen = [];
+  const gw = await server(t, async (url, init) => {
+    seen.push({ url, headers: init.headers, body: init.body });
+    if (seen.length === 3) return Response.json({ error: { message: 'Overloaded' } }, { status: 503 });
+    return sse([{ type: 'message_stop' }]);
+  });
+  await gw.call();
+  gw.configure({ preferAnthropic: true }); await gw.call(); await gw.call(); await gw.call(); await gw.call();
+  gw.configure({ preferAnthropic: false }); await gw.call();
+  assert.deepEqual(seen.map(r => r.headers['x-api-provider']), ['bedrock_anthropic', 'anthropic', 'anthropic', 'bedrock_anthropic', 'bedrock_anthropic', 'bedrock_anthropic']);
+  assert(seen.every(r => r.url.startsWith('https://prem.factory.ai/')));
+  assert(seen.every(r => r.body === seen[0].body));
+  assert.equal(new Set(seen.map(r => r.headers['x-session-id'])).size, 1);
+});
 test('gateway 503 -> Snowflake 500 -> Azure success and next turn locks Azure; each call sends one request and preserves cache body', async t => {
   const seen = [];
   const gw = await server(t, async (url, init) => {

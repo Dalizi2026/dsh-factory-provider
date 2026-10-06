@@ -25,6 +25,7 @@
         # rewrite takes over placement; passthrough changes nothing.
         anthropicCacheMode: auto
         anthropicCacheTTL: 5m
+        anthropicPreferOfficial: false
         # CLI 0.233.0 input/output budgets, adapted per-model compaction defaults.
         factoryContextAlignment: true
         factoryRequestRecovery: true

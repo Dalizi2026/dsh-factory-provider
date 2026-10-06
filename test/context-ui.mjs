@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-function render(config, which = 'config') {
+function render(config, which = 'config', status) {
   let registration;
   const source = fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
-    .replace('exports.apply = apply;', 'exports.apply = apply; exports.testConfigCard = ConfigCard; exports.testContextCard = ContextCard;');
+    .replace('exports.apply = apply;', 'exports.apply = apply; exports.testConfigCard = ConfigCard; exports.testContextCard = ContextCard; exports.testRoutingCard = RoutingCard; exports.testConfigOperations = configOperations;');
   vm.runInNewContext(source, { window: { __ModuleLoader__: { load: entry => { registration = entry; } } } });
   const react = { createElement: (type, props, ...children) => ({ type, props: props ?? {}, children }) };
-  const component = registration.factory(() => react)[which === 'context' ? 'testContextCard' : 'testConfigCard'];
+  const module = registration.factory(() => react);
+  const component = module[which === 'routing' ? 'testRoutingCard' : which === 'context' ? 'testContextCard' : 'testConfigCard'];
   const changes = [];
-  const tree = component({ t: key => key, config, routes: {
+  const tree = component({ t: key => key, config, status, routes: {
     anthropic: { providerKey: 'factory-a', models: [{ id: 'opus', name: 'Opus' }] },
     generic: { providerKey: 'factory-g', models: [{ id: 'glm-5.3-flash', name: 'GLM Flash', cost: '0.06x' }] },
     openai: { providerKey: 'factory-o', models: [{ id: 'gpt', name: 'GPT' }] },
@@ -20,8 +21,30 @@ function render(config, which = 'config') {
   const nodes = [];
   function walk(node) { if (Array.isArray(node)) return node.forEach(walk); if (!node || typeof node !== 'object') return; nodes.push(node); node.children?.forEach(walk); }
   walk(tree);
-  return { nodes, changes };
+  return { nodes, changes, operations: module.testConfigOperations };
 }
+
+test('routing UI: visible card defaults off, edits a boolean and persists both on and off', () => {
+  const f = render({}, 'routing');
+  assert.equal(f.nodes[0].props.id, 'routing'); assert.equal(f.nodes[0].props.defaultOpen, true);
+  const checkbox = f.nodes.find(n => n.type === 'input' && n.props.type === 'checkbox');
+  assert.equal(checkbox.props.checked, false); checkbox.props.onChange({ target: { checked: true } });
+  assert.deepEqual(f.changes, [{ field: 'anthropicPreferOfficial', value: true }]);
+  for (const value of [true, false]) {
+    const ops = f.operations({ anthropicPreferOfficial: value });
+    const op = ops.find(o => o.path[0] === 'anthropicPreferOfficial'); assert.equal(op.value, value);
+    assert.equal(op.op, 'set');
+  }
+  assert(f.nodes.some(n => typeof n.type === 'function' && n.type.name === 'SaveBar'));
+});
+
+test('routing UI: explains unavailable official candidate after a Claude request', () => {
+  const status = { providerRouting: { preferAnthropic: true, lastClaudeSelection: { model: 'opus', preferenceReason: 'anthropic_unavailable' } } };
+  const f = render({ anthropicPreferOfficial: true }, 'routing', status);
+  assert(f.nodes.some(n => n.props.role === 'status' && n.children.includes('routingAnthropicUnavailable')));
+  status.providerRouting.preferAnthropic = false;
+  assert(!render({}, 'routing', status).nodes.some(n => n.props.role === 'status'));
+});
 
 test('context UI: summary selector lists enabled visible models and emits a model change', () => {
   const f = render({ routes: ['anthropic', 'generic'], modelAllowlist: ['opus', 'glm-5.3-flash'] }, 'context');
