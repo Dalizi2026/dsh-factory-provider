@@ -616,6 +616,14 @@
         "fireworks"
       ]
     },
+    "deepseek-v4.1-flash": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "baseten",
+        "fireworks"
+      ]
+    },
     "deepseek-v4-flash-0731": {
       "family": "factory",
       "route": "generic",

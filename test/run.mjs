@@ -1012,8 +1012,9 @@ test("client: registers a settings.section entry with the expected shape", async
 test("catalog: openai route lists probed-callable GPT models only", () => {
   const models = buildModelEntries("openai");
   const ids = models.map((m) => m.id);
-  // gpt-6.1-sol answered "Provider not available in this region" live.
-  assert.ok(!ids.includes("gpt-6.1-sol"));
+  // gpt-6.1-sol 403'd "Provider not available in this region" on the upstream author's account,
+  // but droid lists it (0.8x) for this local account, so it is enabled here.
+  assert.ok(ids.includes("gpt-6.1-sol"));
   assert.ok(ids.includes("gpt-6-luna"));
   assert.ok(ids.includes("gpt-5.2"));
   for (const m of models) {
