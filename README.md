@@ -2,7 +2,19 @@
 
 把 [Factory](https://factory.ai) 的模型接进 [DeepSeek Harness](https://github.com/deepseek-ai) —— 用 Factory 订阅额度跑 DSH，支持 Claude、GLM、Kimi、MiniMax 等模型。
 
-**当前版本：1.3.5**
+**当前版本：1.3.6**
+
+## 1.3.6 更新
+
+- **新增模型**：DeepSeek V4.1 Flash（0.12x）与 GPT-6.1 Sol（0.8x），替换目录中的两个已弃用 DeepSeek 模型。
+- **补齐模型路由**：GPT-6.1 Sol 使用官方 CLI 登记的 OpenAI 上游及思考档位；DeepSeek 按账号配置选择允许的后端，不随意切换正常线路。
+- **核实上下文预算**：两个新模型的输入、输出预算均从官方 CLI 0.233.0 核实，配套模型目录、限制与路由保持一致。
+- **兼容旧设置**：已保存的旧 DeepSeek 压缩阈值不会阻止插件升级加载；不自动应用到新模型。
+- **保留贡献记录**：感谢 [@huangzhenhao90](https://github.com/huangzhenhao90) 的 [PR #1](https://github.com/Dalizi2026/dsh-factory-provider/pull/1)，原始提交与维护者的补齐修复分别保留。
+
+验证：**273 项离线测试通过，0 失败、0 跳过**，包含真实 DSH 宿主的离线集成及新模型的本地模拟网关测试。本次没有追加真实模型请求。
+
+**更新后请完整退出并重新打开 DSH**，确认插件状态接口版本为 `1.3.6`。
 
 ## 1.3.5 更新
 
@@ -380,7 +392,7 @@ YYYY-MM-DD.jsonl
 
 429、5xx、传输故障及流内过载会为下一次 DSH 重试选择后续线路，成功后保持该会话的线路。认证失败、额度不足、413 不触发轮换；手动停止不触发轮换。DSH 的超时在下一次请求用本地尝试标识确认，内部标识不发给 Factory。插件不增加一层重试循环，次数与间隔仍由 DSH 控制。切换线路可能首次重新建立缓存，不能保证服务器故障时一定有可用线路。
 
-这部分是服务端修改，更新后需要完整退出并重新打开 DSH。`/api/dsh-factory-provider/status` 应返回版本 `1.3.5`，并出现 `providerRouting` 字段，才表示新网关已加载。
+这部分是服务端修改，更新后需要完整退出并重新打开 DSH。`/api/dsh-factory-provider/status` 应返回版本 `1.3.6`，并出现 `providerRouting` 字段，才表示新网关已加载。
 
 **Q：故障线路恢复后，会自动切回吗？**
 
