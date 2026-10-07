@@ -1,0 +1,52 @@
+{
+  "version": "0.233.0",
+  "source": "https://registry.npmjs.org/@factory/cli-darwin-arm64/-/cli-darwin-arm64-0.233.0.tgz",
+  "binarySHA256": "352c8b138511060c1fdd5b750570c591dfd1f18659c441efa4f041124b1a7fe9",
+  "budgetFunctions": [
+    "function P(o,t){return I({maxInputTokens:o-t,maxOutputTokens:t})}",
+    "function I(o){let t={...o,defaultCompactionLimit:\"defaultCompactionLimit\"in o?o.defaultCompactionLimit:Math.min(o.maxInputTokens,250000)};return()=>t}"
+  ],
+  "models": [
+    {
+      "id": "deepseek-v4.1-flash",
+      "provider": "factory-g",
+      "maxInputTokens": 908928,
+      "maxOutputTokens": 131072,
+      "threshold": 250000,
+      "explicitTotal": 1040000,
+      "budgetSum": 1040000,
+      "apiProviders": [
+        "fireworks",
+        "baseten",
+        "databricks"
+      ],
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "high",
+        "max"
+      ],
+      "registrySource": "\"deepseek-v4.1-flash\":{id:\"deepseek-v4.1-flash\",name:\"DeepSeek V4.1 Flash\",shortName:\"DeepSeek V4.1 Flash\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\",\"baseten\",\"databricks\"],routingConfig:g.DEEPSEEK_V4_1_FLASH,apiProviderConfig:{fireworks:{...se,modelId:\"accounts/fireworks/models/deepseek-v4p1-flash\"},baseten:{...se,modelId:\"deepseek-ai/DeepSeek-V4.1-Flash\"},databricks:{...Yt,modelId:\"databricks-deepseek-v4-1-flash\"}},reasoningEffort:{supported:[\"off\",\"low\",\"high\",\"max\"],default:\"high\"},chatCompletionRequest:Te(),tier:\"standard\",billingPool:\"core\",featureFlag:K.DeepSeekV41Flash,images:!0,pdf:!1,contextLimits:P(1040000,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.12,cacheReadTokenMultiplier:0.024,outputTokenMultiplier:4},usesUSBasedInference:!0,matchPatterns:[/deepseek[^a-z0-9]*v?4(?:[^a-z0-9]*1|p1)[^a-z0-9]*flash/i],newUntil:new Date(\"2026-09-21T00:00:00Z\")}"
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "provider": "factory-o",
+      "maxInputTokens": 922000,
+      "maxOutputTokens": 128000,
+      "threshold": 250000,
+      "explicitTotal": 1050000,
+      "budgetSum": 1050000,
+      "apiProviders": [
+        "openai"
+      ],
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "registrySource": "\"gpt-6.1-sol\":{id:\"gpt-6.1-sol\",name:\"GPT-6.1 Sol\",shortName:\"GPT-6.1 Sol\",provider:\"openai\",apiProviders:[\"openai\"],reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"premium\",featureFlag:K.Gpt61Sol,pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,regionOverrides:{eu:{apiProviders:[\"openai\"]}},contextLimits:T,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:0.8,cacheReadTokenMultiplier:0.05,outputTokenMultiplier:5},matchPatterns:[/gpt[^a-z0-9]*6[.-]?1[^a-z0-9]*sol/i],newUntil:new Date(\"2026-10-05T00:00:00Z\")}"
+    }
+  ]
+}

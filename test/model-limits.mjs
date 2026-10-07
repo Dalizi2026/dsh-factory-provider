@@ -5,11 +5,20 @@ import { FACTORY_MODEL_LIMITS, FACTORY_LIMITS_VERSION, factoryModelLimits, clamp
 import { ROUTES, buildModelEntries } from '../lib/catalog.js';
 import { alignedCompactionBudget } from '../lib/context.js';
 const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.233.0-budgets.json', import.meta.url)));
+// Keep the original collection intact; independently extract the additions from the same CLI binary.
+const additions = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.233.0-model-additions.json', import.meta.url)));
+const retired = ['deepseek-v4-pro', 'deepseek-v4-flash-0731'];
+const activeEvidence = [...evidence.models.filter(m => !retired.includes(m.id)), ...additions.models];
 
 test('limits: all 38 models match the independently collected CLI snapshot', () => {
   assert.equal(FACTORY_LIMITS_VERSION, evidence.version);
   assert.equal(Object.keys(FACTORY_MODEL_LIMITS).length, 38);
-  for (const expected of evidence.models) {
+  assert.equal(additions.binarySHA256, evidence.binarySHA256);
+  const ids = Object.values(ROUTES).flatMap(r=>r.models).map(m=>m.id).sort();
+  assert.deepEqual(Object.keys(FACTORY_MODEL_LIMITS).sort(), ids);
+  assert.deepEqual(activeEvidence.map(m=>m.id).sort(), ids);
+  for (const id of retired) assert.equal(FACTORY_MODEL_LIMITS[id], undefined);
+  for (const expected of activeEvidence) {
     const l = factoryModelLimits(expected.provider, expected.id, 'off');
     assert.equal(l.maxInputTokens, expected.maxInputTokens, expected.id);
     assert.equal(l.maxOutputTokens, expected.maxOutputTokens, expected.id);
@@ -52,7 +61,7 @@ test('limits: 400K overrides apply without raising the CLI input budget', () => 
   assert.throws(()=>alignedCompactionBudget({limits,contextWindow:128000,maxTokens:128000,thresholdTokens:400000}),/safe input budget/);
 });
 test('limits: each remaining model uses its CLI threshold with its own output reserve', () => {
-  for(const e of evidence.models) {
+  for(const e of activeEvidence) {
     if(['claude-opus-5-5','claude-sonnet-5-5','claude-haiku-4-5-20251001'].includes(e.id))continue;
     const l=factoryModelLimits(e.provider,e.id);
     assert.equal(alignedCompactionBudget({limits:l,contextWindow:l.contextWindow,maxTokens:l.maxOutputTokens,thresholdTokens:l.defaultCompactionLimit}).threshold,e.threshold,e.id);
@@ -62,6 +71,8 @@ test('limits: output ceilings preserve smaller requests and apply to each wire p
   for(const [provider,model,field,cap] of [
     ['factory-a','claude-opus-5-5','max_tokens',128000],
     ['factory-o','gpt-6-sol','max_output_tokens',128000],
+    ['factory-o','gpt-6.1-sol','max_output_tokens',128000],
+    ['factory-g','deepseek-v4.1-flash','max_tokens',131072],
     ['factory-g','inkling','max_tokens',32768],
     ['factory-g','kimi-k3','max_completion_tokens',65536],
   ]) {

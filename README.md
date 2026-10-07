@@ -473,6 +473,14 @@ macOS 上如果系统 `git`/`python3` 因 Xcode 许可不可用，可用：
 
 ---
 
+## 贡献者
+
+感谢 [@huangzhenhao90](https://github.com/huangzhenhao90) 在 [PR #1](https://github.com/Dalizi2026/dsh-factory-provider/pull/1) 中贡献 DeepSeek V4.1 Flash 和 GPT-6.1 Sol 的初始模型支持，以及旧 DeepSeek 模型的目录替换。
+
+维护者在独立的后续提交中补齐旧模型的限制与路由清理，按官方 CLI 修正 GPT-6.1 Sol 上游和思考档位、补全 DeepSeek 后端资格，核实上下文预算，并完善旧配置兼容及完整回归测试。原始贡献与后续修复分别保留提交记录。
+
+---
+
 ## 许可
 
 MIT，见 [LICENSE](LICENSE)。

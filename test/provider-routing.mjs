@@ -65,6 +65,13 @@ test('saved preference changes affect new sessions only; existing Claude/Core/GP
 
 test('all 38 catalog models have audited routing and each selected backend belongs to its model', () => {
   assert.equal(Object.keys(data.models).length, 38);
+  assert.deepEqual(Object.keys(data.models).sort(), Object.values(ROUTES).flatMap(r=>r.models).map(m=>m.id).sort());
+  const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.233.0-model-additions.json', import.meta.url)));
+  for (const m of evidence.models) assert.deepEqual(data.models[m.id].providers, m.apiProviders, m.id);
+  for (const id of ['deepseek-v4-pro', 'deepseek-v4-flash-0731']) {
+    assert.equal(data.models[id], undefined); assert.equal(data.config.models[id], undefined);
+    assert.equal(data.config.blockedProviders[id], undefined); assert.deepEqual(providerOrder(id), []);
+  }
   for (const [route, entry] of Object.entries(ROUTES)) for (const model of entry.models) {
     const registry = data.models[model.id]; assert(registry, model.id); assert.equal(registry.route, route);
     const order = providerOrder(model.id); assert(order.length, model.id);
@@ -77,6 +84,12 @@ test('official ordering is configured order, not registered backend order', () =
   assert.deepEqual(providerOrder('claude-sonnet-5'), ['azure_anthropic', 'bedrock_anthropic', 'anthropic', 'vertex_anthropic']);
   assert.deepEqual(providerOrder('glm-5.3-flash'), ['fireworks', 'baseten']);
   assert.deepEqual(providerOrder('glm-5.3'), ['baseten', 'fireworks']);
+  assert.deepEqual(providerOrder('deepseek-v4.1-flash'), ['baseten', 'fireworks']);
+  for (const region of ['global', 'eu', 'us']) assert.deepEqual(providerOrder('gpt-6.1-sol', { region }), ['openai']);
+  const config = cloneConfig(); config.models['gpt-6.1-sol'] = ['azure_openai', 'bedrock_openai'];
+  assert.deepEqual(providerOrder('gpt-6.1-sol', { config }), ['openai']);
+  config.models['deepseek-v4.1-flash'] = ['databricks', 'baseten'];
+  assert.deepEqual(providerOrder('deepseek-v4.1-flash', { config }), ['databricks', 'baseten']);
   assert.deepEqual(providerOrder('minimax-m3'), ['fireworks']);
   assert.deepEqual(providerOrder('inkling'), ['fireworks']);
   assert.deepEqual(providerOrder('claude-opus-5-5-fast'), ['anthropic']);
@@ -228,6 +241,16 @@ test('gateway GLM transport failure -> Baseten, same Chat Completions protocol; 
   assert(seen.slice(0, 2).every(r => r.url.endsWith('/chat/completions')));
   await gw.call({ route: 'openai', model: 'gpt-6-luna', input: [{ role: 'user', content: 'hello' }] });
   assert.equal(seen[2].headers['x-api-provider'], 'openai'); assert(seen[2].headers['openai-platform']);
+  assert.equal((await gw.call({ route: 'openai', model: 'gpt-6.1-sol', input: [{ role: 'user', content: 'hello' }] })).status, 200);
+  assert.equal(seen[3].headers['x-api-provider'], 'openai');
+  assert(seen[3].url.endsWith('/api/llm/o/v1/responses'));
+  assert.equal((await gw.call({ route: 'generic', model: 'deepseek-v4.1-flash' })).status, 200);
+  assert.equal(seen[4].headers['x-api-provider'], 'baseten');
+  assert(seen[4].url.endsWith('/api/llm/o/v1/chat/completions'));
+  for (const model of ['deepseek-v4-pro', 'deepseek-v4-flash-0731']) {
+    assert.equal((await gw.call({ route: 'generic', model })).status, 400);
+  }
+  assert.equal(seen.length, 5, 'removed models never send upstream');
 });
 test('gateway 401 refresh does not rotate; 402/403/413/400 never rotate; unsupported model never sends', async t => {
   const providers = []; const statuses = [401, 401, 402, 403, 413, 400, 200];

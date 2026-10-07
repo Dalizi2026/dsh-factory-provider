@@ -228,17 +228,9 @@
         "fireworks",
         "baseten"
       ],
-      "deepseek-v4-flash-0731": [
-        "fireworks",
-        "baseten"
-      ],
       "deepseek-v4.1-flash": [
         "baseten",
         "fireworks"
-      ],
-      "deepseek-v4-pro": [
-        "fireworks",
-        "baseten"
       ],
       "minimax-m3": [
         "baseten",
@@ -620,24 +612,9 @@
       "family": "factory",
       "route": "generic",
       "providers": [
+        "fireworks",
         "baseten",
-        "fireworks"
-      ]
-    },
-    "deepseek-v4-flash-0731": {
-      "family": "factory",
-      "route": "generic",
-      "providers": [
-        "fireworks",
-        "baseten"
-      ]
-    },
-    "deepseek-v4-pro": {
-      "family": "factory",
-      "route": "generic",
-      "providers": [
-        "fireworks",
-        "baseten"
+        "databricks"
       ]
     },
     "minimax-m2.7": {
@@ -697,6 +674,18 @@
         "baseten",
         "fireworks"
       ]
+    },
+    "gpt-6.1-sol": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      }
     }
   }
 }

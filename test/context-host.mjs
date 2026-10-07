@@ -219,8 +219,8 @@ test('native DSH alignment: approved defaults trigger across vendor families, wi
   for(const [provider,model,threshold,output] of [
     ['factory-g','glm-5.3',890000,131072],['factory-g','qwen3.8-max',118000,131072],
     ['factory-g','kimi-k3',190000,65536],['factory-g','minimax-m3',420000,64000],
-    ['factory-g','minimax-m2.7',185000,64000],['factory-g','deepseek-v4-pro',830000,131072],
-    ['factory-g','deepseek-v4-flash-0731',830000,131072],['factory-a','claude-opus-4-8',850000,128000],
+    ['factory-g','minimax-m2.7',185000,64000],['factory-g','deepseek-v4.1-flash',830000,131072],
+    ['factory-o','gpt-6.1-sol',250000,128000],['factory-a','claude-opus-4-8',850000,128000],
     ['factory-a','claude-fable-5.1',850000,128000],['factory-a','claude-sonnet-5',850000,128000],
     ['factory-a','claude-sonnet-4-6',910000,64000],
   ]) {

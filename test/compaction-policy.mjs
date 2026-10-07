@@ -15,7 +15,7 @@ test('approved policies: defaults fit all 38 unchanged Factory input/output enve
     'claude-opus-4-8':850000, 'claude-opus-5':850000, 'claude-opus-4-7':850000,
     'claude-fable-5':850000, 'claude-fable-5.1':850000,
     'claude-sonnet-5':850000, 'claude-sonnet-4-6':910000,
-    'deepseek-v4-pro':830000, 'deepseek-v4-flash-0731':830000,
+    'deepseek-v4.1-flash':830000, 'gpt-6.1-sol':250000,
     'claude-opus-5-5':400000, 'claude-sonnet-5-5':400000, 'claude-opus-5-5-fast':250000,
   };
   for (const [id, l] of Object.entries(FACTORY_MODEL_LIMITS)) {
@@ -36,6 +36,12 @@ test('saved thresholds: schema validates per model, serializes numeric overrides
     {'glm-5.3':500000.5},{'glm-5.3':'500000'},{'glm-5.3':null}]) {
     assert.throws(()=>validateModelCompactionTokens(values));
   }
+  const retired = {'deepseek-v4-pro':830000, 'deepseek-v4-flash-0731':500000};
+  const upgraded = Config({modelCompactionTokens:retired});
+  assert.deepEqual(validateModelCompactionTokens(upgraded.modelCompactionTokens.get()), retired);
+  assert.equal(modelCompactionPolicy('deepseek-v4-pro'), undefined);
+  assert.equal(resolveModelCompactionPolicy('deepseek-v4.1-flash', upgraded).thresholdTokens,830000);
+  assert.throws(()=>validateModelCompactionTokens({'deepseek-v4-pro':843393}));
   const persisted=JSON.parse(JSON.stringify(config.modelCompactionTokens.get()));
   assert.equal(resolveModelCompactionPolicy('glm-5.3',Config({modelCompactionTokens:persisted})).thresholdTokens,500000);
   assert.equal(resolveModelCompactionPolicy('claude-opus-5-5',{opus55CompactionTokens:300000,
@@ -45,6 +51,7 @@ test('saved thresholds: schema validates per model, serializes numeric overrides
 test('published settings schema: round-trip serialization needs no plugin module closure', () => {
   const schema=z(JSON.parse(JSON.stringify(Config)));
   assert.equal(schema({modelCompactionTokens:{'glm-5.3':500000}}).modelCompactionTokens.get()['glm-5.3'],500000);
+  assert.deepEqual(schema({modelCompactionTokens:{'deepseek-v4-pro':500000}}).modelCompactionTokens.get(), {'deepseek-v4-pro':500000});
   assert.throws(()=>schema({modelCompactionTokens:{unknown:100000}}));
   assert.throws(()=>schema({modelCompactionTokens:{'glm-5.3':'500000'}}));
 });
