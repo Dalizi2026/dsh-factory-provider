@@ -65,14 +65,17 @@ test('saved preference changes affect new sessions only; existing Claude/Core/GP
 
 test('all 38 catalog models have audited routing and each selected backend belongs to its model', () => {
   assert.equal(Object.keys(data.models).length, 38);
-  assert.deepEqual(Object.keys(data.models).sort(), Object.values(ROUTES).flatMap(r=>r.models).map(m=>m.id).sort());
+  // Gemini bypasses the router (droid pins x-api-provider: google), so the
+  // routing snapshot covers only the three routed families.
+  const routed = Object.entries(ROUTES).filter(([route]) => route !== 'google');
+  assert.deepEqual(Object.keys(data.models).sort(), routed.flatMap(([, r])=>r.models).map(m=>m.id).sort());
   const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.233.0-model-additions.json', import.meta.url)));
   for (const m of evidence.models) assert.deepEqual(data.models[m.id].providers, m.apiProviders, m.id);
   for (const id of ['deepseek-v4-pro', 'deepseek-v4-flash-0731']) {
     assert.equal(data.models[id], undefined); assert.equal(data.config.models[id], undefined);
     assert.equal(data.config.blockedProviders[id], undefined); assert.deepEqual(providerOrder(id), []);
   }
-  for (const [route, entry] of Object.entries(ROUTES)) for (const model of entry.models) {
+  for (const [route, entry] of routed) for (const model of entry.models) {
     const registry = data.models[model.id]; assert(registry, model.id); assert.equal(registry.route, route);
     const order = providerOrder(model.id); assert(order.length, model.id);
     for (const p of order) assert(registry.providers.includes(p), `${model.id}: ${p}`);
