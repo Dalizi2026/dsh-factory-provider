@@ -8,13 +8,16 @@ const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.233.0-bu
 // Keep the original collection intact; independently extract the additions from the same CLI binary.
 const additions = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.233.0-model-additions.json', import.meta.url)));
 const retired = ['deepseek-v4-pro', 'deepseek-v4-flash-0731'];
+const SNAPSHOT_ROUTES = Object.entries(ROUTES).filter(([route]) => route !== 'google').map(([, r]) => r);
 const activeEvidence = [...evidence.models.filter(m => !retired.includes(m.id)), ...additions.models];
 
 test('limits: all 38 models match the independently collected CLI snapshot', () => {
   assert.equal(FACTORY_LIMITS_VERSION, evidence.version);
   assert.equal(Object.keys(FACTORY_MODEL_LIMITS).length, 38);
   assert.equal(additions.binarySHA256, evidence.binarySHA256);
-  const ids = Object.values(ROUTES).flatMap(r=>r.models).map(m=>m.id).sort();
+  // The Gemini route is outside the 0.233.0 snapshot: one pinned upstream and
+  // its own limits from droid 0.241.1, asserted in test/gemini.mjs.
+  const ids = SNAPSHOT_ROUTES.flatMap(r=>r.models).map(m=>m.id).sort();
   assert.deepEqual(Object.keys(FACTORY_MODEL_LIMITS).sort(), ids);
   assert.deepEqual(activeEvidence.map(m=>m.id).sort(), ids);
   for (const id of retired) assert.equal(FACTORY_MODEL_LIMITS[id], undefined);
@@ -23,13 +26,13 @@ test('limits: all 38 models match the independently collected CLI snapshot', () 
     assert.equal(l.maxInputTokens, expected.maxInputTokens, expected.id);
     assert.equal(l.maxOutputTokens, expected.maxOutputTokens, expected.id);
     assert.equal(l.defaultCompactionLimit, expected.threshold, expected.id);
-    const model = Object.values(ROUTES).flatMap(r=>r.models).find(m=>m.id===expected.id);
+    const model = SNAPSHOT_ROUTES.flatMap(r=>r.models).find(m=>m.id===expected.id);
     assert.equal(model.maxTokens, expected.maxOutputTokens, expected.id);
     if (expected.explicitTotal) assert.equal(model.contextWindow, expected.explicitTotal, expected.id);
   }
 });
 test('limits: profiles keep per-model budgets and region gates, without unknown SDK fields', () => {
-  for (const route of Object.keys(ROUTES)) {
+  for (const route of Object.keys(ROUTES).filter(r => r !== 'google')) {
     for (const e of buildModelEntries(route)) {
       const l = FACTORY_MODEL_LIMITS[e.id];
       assert.equal(e.contextWindow, l.contextWindow); assert.equal(e.maxTokens, l.maxOutputTokens);
