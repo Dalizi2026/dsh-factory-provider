@@ -8,7 +8,7 @@ import { FACTORY_MODEL_LIMITS } from '../lib/model-limits.js';
 import { modelCompactionPolicy, resolveModelCompactionPolicy, validateModelCompactionTokens } from '../lib/compaction-policy.js';
 import { alignedCompactionBudget } from '../lib/context.js';
 
-test('approved policies: defaults fit all 38 unchanged Factory input/output envelopes', () => {
+test('approved policies: defaults fit all Factory input/output envelopes', () => {
   const expected = {
     'glm-5.3-flash':900000, 'glm-5.3':890000, 'qwen3.8-max':118000,
     'kimi-k3':190000, 'minimax-m3':420000, 'minimax-m2.7':185000,

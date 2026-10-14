@@ -1,8 +1,41 @@
 # dsh-factory-provider
 
-把 [Factory](https://factory.ai) 的模型接进 [DeepSeek Harness](https://github.com/deepseek-ai) —— 用 Factory 订阅额度跑 DSH，支持 Claude、GLM、Kimi、MiniMax 等模型。
+把 [Factory](https://factory.ai) 的模型接进 [DeepSeek Harness](https://github.com/deepseek-ai) —— 用 Factory 订阅额度跑 DSH，支持 Claude、GPT、Gemini（含 Gemini 4 Argon）、Grok，以及 GLM、Kimi、MiniMax、Mistral 等 Core 模型。
 
-**当前版本：1.3.6**
+**当前版本：1.3.7**
+
+## 1.3.7 更新 · 2026-10-14
+
+按 Factory 官方公开模型表和 Droid CLI **0.241.0** 补入 17 个模型条目，整理 Core / 标准池分类，并完成 Gemini 原生协议的 DSH 兼容接入。
+
+- **Core 模型**：新增 Mistral Large 4、Mistral Medium 3.5，补齐 GLM-5.2 / Fast。Core 模型仍先消耗标准额度，标准额度耗尽后才使用 Core 额度。
+- **标准池模型**：新增 Claude Haiku 5.5，补齐 GPT-5.5 Pro、GPT-5.3 Codex Fast；独立接入 7 个 Gemini 和 3 个 Grok 模型。
+- **分类界面**：先按 Core / 标准池分区，再按 Claude、GPT、Gemini、Grok 分组。每组可独立折叠、启用和全选；压缩阈值菜单使用相同分类。
+- **默认预设**：新增模型的输入、输出预算、思考默认值和压缩默认值取自官方 CLI；不改已有模型的用户阈值。Mistral 处理专有的思考内容格式。
+- **倍率有效期**：Mistral Large 4 的 0.272x 上线优惠于 2026-10-20 00:00 UTC 到期，之后自动显示 0.544x。Gemini / GPT 的已登记优惠同样按日期更新。
+
+| 新增组 | 模型 | 默认输入 / 输出预算 | 默认压缩阈值 |
+| --- | --- | --- | --- |
+| Claude | Haiku 5.5 | 872,000 / 128,000 | 250,000 |
+| Core | Mistral Large 4 | 524,288 / 64,000 | 250,000 |
+| Core | Mistral Medium 3.5 | 192,000 / 64,000 | 192,000 |
+| Core | GLM-5.2 / Fast | 908,928 / 131,072；393,216 / 131,072 | 250,000 |
+| GPT | GPT-5.5 Pro / Codex 5.3 Fast | 922,000 / 128,000；272,000 / 128,000 | 250,000 |
+| Gemini | 4 Argon（默认 medium） | 934,464 / 65,536 | 250,000 |
+| Gemini | 3.1 Pro、3.8 / 3.7 / 3.6 / 3.5 Flash、3 Flash | 1,000,000 / 65,536 | 250,000 |
+| Grok | 4.5 / 4.6；4.7 | 200,000 / 63,356；436,644 / 63,356 | 200,000；250,000 |
+
+Gemini 使用插件内置的原生流转换，兼容 DSH 仅支持三种配置协议的版本，无需用户安装额外 SDK 或修改 DSH。
+
+Gemini 4 Argon 按 CLI 登记接入，保留原生思考签名、图片与工具结果；默认不发送采样参数。上线优惠 0.8x 于 2026-12-01 08:00 UTC 到期后自动显示 1.6x。可用性取决于账号 `gemini_4_argon` 开关与地区。
+
+最终兼容代码已于 2026-10-14 通过 4 次真实低消耗请求验证：Gemini 4 Argon 的对话、带签名的工具调用及结果回传 3 次，Gemini 3.8 Flash 回归 1 次，均成功；会话上游保持正常。未做长前缀缓存率测试。
+
+以上为 CLI 的适配器预算，不表示服务端实测硬上限；输入与输出预算之和也不一定等于模型物理上下文。账号、地区及组织授权仍由 Factory 决定。旧设置中的渠道与模型勾选会保留：**完整重启 DSH 后，在「模型 → 标准池模型」启用 Gemini / Grok，按需勾选并保存新增模型。**
+
+验证：**294 项离线测试通过，0 失败、0 跳过**，包含真实 DSH 宿主的配置与适配器集成、20 张图片自适应、本地模拟网关、签名回传、取消与断流、Mistral 流式思考转换及分类界面。前后共 7 次真实小请求均成功；其中最终兼容代码验证了 Gemini 4 Argon 3 次和 Gemini 3.8 Flash 1 次。其他新增模型完成离线验证，尚未逐一真实调用。用户后续多轮使用记录显示 Gemini 4 累计输入缓存命中约 83%，最后一次约 98.6%；这是样本观察，不保证其他任务或账号达到同样比例。
+
+**升级后请完整退出并重新打开 DSH，确认版本为 `1.3.7`。旧版用户还需在插件「模型 → 标准池模型」启用 Gemini / Grok、勾选模型并保存；已有选择和自定义压缩阈值保留。**
 
 ## 1.3.6 更新
 
@@ -14,7 +47,7 @@
 
 验证：**273 项离线测试通过，0 失败、0 跳过**，包含真实 DSH 宿主的离线集成及新模型的本地模拟网关测试。本次没有追加真实模型请求。
 
-**更新后请完整退出并重新打开 DSH**，确认插件状态接口版本为 `1.3.6`。
+**更新后请完整退出并重新打开 DSH**，确认插件状态接口版本为 `1.3.7`。
 
 ## 1.3.5 更新
 
@@ -54,7 +87,7 @@
 
 | 功能 | 说明 |
 | --- | --- |
-| **三条协议路由** | Anthropic Messages、OpenAI chat/completions、OpenAI responses，SSE 流式原样透传 |
+| **五个模型分组** | Core、Claude、GPT、Gemini、Grok；按各家协议处理流式回复，Gemini 由插件完成原生协议兼容 |
 | **上游故障切换** | 按当前 API key 的官方路由顺序切换；成功线路按会话保持，避免一直重试故障线路 |
 | **模型目录** | 把 Factory 的模型表写进 DSH，含每个模型的思考强度档位（low/medium/high/xhigh/max） |
 | **凭据管理** | 粘贴 API key 即用，可存多个切换；key 只存本机（0600），不进设置文件、不进日志 |
@@ -67,13 +100,15 @@
 | **413 恢复** | 有次数限制的恢复：先移出旧图片，再压缩历史；不会原样无限重发 |
 | **诊断日志** | `journal.jsonl` 记录每次转发的请求形态与上游状态 |
 
-**三条路由的区别**：
+**五个分组的协议与额度**：
 
 | 路由 | 协议 | 典型模型 |
 | --- | --- | --- |
 | `generic` | OpenAI chat/completions | GLM-5.3-Flash、Kimi、MiniMax、DeepSeek |
 | `anthropic` | Anthropic Messages | Claude Opus 5.5、Sonnet 5.5 等 |
-| `openai` | OpenAI responses | GPT 系 |
+| `openai` | OpenAI responses | GPT 系（标准池） |
+| `google` | 官方原生 Google `/api/llm/g/v1/generate` 入口 | Gemini（标准池） |
+| `xai` | OpenAI responses | Grok（标准池） |
 
 ---
 
@@ -123,6 +158,10 @@ dsh --version
 **还需要 DSH 本身**，并确认 `dsh` 命令可用。
 
 ### 第 2 步：安装插件
+
+可从 [最新 Release](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) 下载 `dsh-factory-provider-1.3.7.tgz` 或固定文件名 `dsh-factory-provider.tgz`，两者内容相同。安装后须完整重启 DSH。
+
+以下为源码安装方式：
 
 把仓库 clone 到本地任意目录，然后：
 
@@ -201,7 +240,7 @@ DSH 的模型列表太长会很碍事。在「模型」卡片里：
 | **订阅额度** | 展开 | 标准池与 Core 池的用量进度条、重置倒计时、超额策略；额度悬浮窗开关 |
 | **Token 统计** | 收起 | 按模型的用量累计（展开后才开始请求）|
 | **上下文与压缩** | 展开 | 工具清理、上下文对齐开关、摘要设置 |
-| **模型** | 收起 | 选择模型、编辑压缩阈值并保存；三条路由的模型显示范围 |
+| **模型** | 收起 | 选择模型、编辑压缩阈值并保存；五个分组的模型显示范围 |
 | **高级** | 收起 | 连接配置（含 Anthropic 上游优先开关）、缓存配置、请求保护、诊断日志 |
 
 > **改完记得保存。** 「模型」「上下文与压缩」和「高级」均可保存当前修改。
@@ -368,7 +407,7 @@ YYYY-MM-DD.jsonl
 | `anthropicToolClearBatchTokens` | `20000` | 分批清理：用 `clear_at_least` 设置一次清理的最小量；按会话与账号隔离批次，确认服务端清理数量后固定范围。`0` 使用原策略（每次请求都清）|
 | `factoryAdaptiveImages` | `true` | 按图片出现次数、文字/工具估算占用分配压缩预算，复用 DSH 图片编码器；不兼容宿主显示未接入，可关闭回退 |
 | `factoryRequestRecovery` | `true` | 只对 Factory 的 413 做有次数限制的恢复：旧图片移出请求，再由 DSH 原生事务压缩历史；不会原样无限重发 |
-| `factoryRequestMaxBytes` | `4194304` | 三条路由最终 JSON 的本地保护预算（4 MiB），不是上游实测硬上限；`0` 关闭，最大 `33554432` |
+| `factoryRequestMaxBytes` | `4194304` | 全部路由最终 JSON 的本地保护预算（4 MiB），不是上游实测硬上限；`0` 关闭，最大 `33554432` |
 | `factoryContextAlignment` | `true` | 启用 Droid CLI 0.233.0 的逐模型输入输出预算；普通 Opus/Sonnet 5.5 和 GLM Flash 使用下方单独阈值，其余保留 Droid 阈值 |
 | `opus55CompactionTokens` | `400000` | 普通版 Opus 5.5 的压力压缩阈值，范围 `16384..872000`；有效值还受输入预算约束 |
 | `sonnet55CompactionTokens` | `400000` | 普通版 Sonnet 5.5 的压力压缩阈值，同上 |
@@ -392,7 +431,7 @@ YYYY-MM-DD.jsonl
 
 429、5xx、传输故障及流内过载会为下一次 DSH 重试选择后续线路，成功后保持该会话的线路。认证失败、额度不足、413 不触发轮换；手动停止不触发轮换。DSH 的超时在下一次请求用本地尝试标识确认，内部标识不发给 Factory。插件不增加一层重试循环，次数与间隔仍由 DSH 控制。切换线路可能首次重新建立缓存，不能保证服务器故障时一定有可用线路。
 
-这部分是服务端修改，更新后需要完整退出并重新打开 DSH。`/api/dsh-factory-provider/status` 应返回版本 `1.3.6`，并出现 `providerRouting` 字段，才表示新网关已加载。
+这部分是服务端修改，更新后需要完整退出并重新打开 DSH。`/api/dsh-factory-provider/status` 应返回版本 `1.3.7`，并出现 `providerRouting` 字段，才表示新网关已加载。
 
 **Q：故障线路恢复后，会自动切回吗？**
 
@@ -407,6 +446,14 @@ YYYY-MM-DD.jsonl
 **Q：切换上游会影响缓存吗？**
 
 可能会。插件继续携带对话历史和缓存标记，但不能迁移上游服务器的缓存。应按切换后可能重新写入缓存来估算消耗，不能保证跨上游命中。因此成功后保持同一会话的线路，减少反复切换；实际读取与写入以返回的 usage 为准。
+
+**Q：Gemini 4 看不到或不能用？**
+
+确认安装 1.3.7 并完整重启 DSH；到 Factory 插件「模型 → 标准池模型 → Gemini」启用、勾选 Gemini 4 Argon 并保存。账号与地区仍须由 Factory 授权。插件保留 `factory-google` 独立配置，内置原生 Gemini 流转换，无需修改 DSH 或另外安装 Google SDK。
+
+**Q：Gemini 缓存率为什么会变化？**
+
+Gemini 4 使用服务端隐式缓存，不能套用 Claude 的 `cache_control`。保持系统、工具和历史前缀稳定有利于复用；新生成代码在下一次作为输入时也可能需要首次处理。设置页显示累计比例，判断异常需同时看逐次请求的缓存读取；短请求不能验证缓存率。
 
 **Q：模型列表是空的？**
 
@@ -450,7 +497,7 @@ YYYY-MM-DD.jsonl
 - **请求重写** — 注入完整的 `factory-cli` 头集合（UA / `X-Factory-Client` / `x-stainless-*` / `traceparent` / `x-api-provider`）、补齐 droid 身份 system 行（边缘硬门槛）、剥离未知字段；客户端 attribution 头一律不透传
 - **会话亲和** — key 与模型隔离；宿主提供会话标识时使用其哈希，否则按 system 提示与首条用户消息近似派生。每轮保留同一个 `x-session-id`，不同 key 不会合并
 - **线路选择** — 按当前 key 的官方路由配置，过滤不支持或禁用的后端；故障时为下一次 DSH 重试轮换，完整成功后保持该会话的线路
-- **协议适配** — 三条路由分别处理三种协议，SSE 流式原样透传；上游 401 会重新解析凭据并重试一次
+- **协议适配** — 五个模型分组分别使用 Anthropic Messages、Chat Completions、Responses 或原生 Gemini；Mistral 内容块与 Gemini 原生流由插件转换，签名与工具结果随历史回传；上游 401 会重新解析凭据并重试一次
 - **缓存断点** — Anthropic 的提示词缓存是**显式**的，需要客户端自己打标记。插件支持三种模式，默认 `auto`（客户端已管理时不插手）
 - **工具清理** — 走 Anthropic 官方的 `context_management` + `clear_tool_uses_20250919`，在服务器端分批清理；清理后可能需要重建缓存或重新读取工具结果，不保证每次开启都更省额度
 - **诊断** — `journal.jsonl` 记录请求形态、实际线路、发送与结束阶段；`handler-error` 记录失败阶段，`apply-error` 记录插件加载异常

@@ -1,8 +1,8 @@
 {
   "source": {
-    "cliVersion": "0.233.0",
-    "routingSnapshotDate": "2026-10-06",
-    "routingSnapshot": "official desktop feature flags; refreshed per API key at runtime"
+    "cliVersion": "0.241.0",
+    "routingSnapshotDate": "2026-10-14",
+    "routingSnapshot": "Existing successful orders preserved; additions from official CLI and cached routing flags; refreshed per API key at runtime"
   },
   "providerRegions": {
     "anthropic": [
@@ -88,6 +88,12 @@
       "factory": [
         "baseten",
         "fireworks"
+      ],
+      "google": [
+        "google"
+      ],
+      "xai": [
+        "xai"
       ]
     },
     "models": {
@@ -244,8 +250,7 @@
         "baseten"
       ],
       "glm-5.2-fast": [
-        "baseten",
-        "fireworks"
+        "baseten"
       ],
       "glm-5.3": [
         "baseten",
@@ -262,6 +267,42 @@
       "nemotron-3-ultra": [
         "baseten",
         "fireworks"
+      ],
+      "claude-haiku-5-5": [
+        "anthropic"
+      ],
+      "mistral-large-4": [
+        "mistral"
+      ],
+      "mistral-medium-3.5": [
+        "mistral"
+      ],
+      "gpt-5.5-pro": [
+        "openai"
+      ],
+      "gpt-5.3-codex-fast": [
+        "openai"
+      ],
+      "gemini-3.1-pro-preview": [
+        "google"
+      ],
+      "gemini-3.8-flash": [
+        "google"
+      ],
+      "gemini-3.7-flash": [
+        "google"
+      ],
+      "gemini-3.6-flash": [
+        "google"
+      ],
+      "gemini-3.5-flash": [
+        "google"
+      ],
+      "gemini-3-flash-preview": [
+        "google"
+      ],
+      "grok-4.5": [
+        "xai"
       ]
     },
     "blockedProviders": {}
@@ -685,6 +726,188 @@
         "eu": [
           "openai"
         ]
+      }
+    },
+    "claude-haiku-5-5": {
+      "family": "anthropic",
+      "route": "anthropic",
+      "providers": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic"
+      ],
+      "regionOverrides": {}
+    },
+    "mistral-large-4": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "mistral"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "mistral"
+        ],
+        "us": []
+      }
+    },
+    "mistral-medium-3.5": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "mistral"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "mistral"
+        ]
+      }
+    },
+    "glm-5.2": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "baseten",
+        "mistral"
+      ],
+      "regionOverrides": {
+        "global": [
+          "baseten"
+        ],
+        "eu": [
+          "mistral"
+        ]
+      }
+    },
+    "glm-5.2-fast": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "baseten"
+      ],
+      "regionOverrides": {}
+    },
+    "gpt-5.5-pro": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai"
+      ],
+      "regionOverrides": {}
+    },
+    "gpt-5.3-codex-fast": {
+      "family": "openai",
+      "route": "openai",
+      "providers": [
+        "openai"
+      ],
+      "regionOverrides": {
+        "us": []
+      }
+    },
+    "gemini-3.1-pro-preview": {
+      "family": "google",
+      "route": "google",
+      "providers": [
+        "google"
+      ],
+      "regionOverrides": {
+        "us": []
+      }
+    },
+    "gemini-3.8-flash": {
+      "family": "google",
+      "route": "google",
+      "providers": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "google"
+        ]
+      }
+    },
+    "gemini-3.7-flash": {
+      "family": "google",
+      "route": "google",
+      "providers": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "google"
+        ]
+      }
+    },
+    "gemini-3.6-flash": {
+      "family": "google",
+      "route": "google",
+      "providers": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "google"
+        ]
+      }
+    },
+    "gemini-3.5-flash": {
+      "family": "google",
+      "route": "google",
+      "providers": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "google"
+        ]
+      }
+    },
+    "gemini-3-flash-preview": {
+      "family": "google",
+      "route": "google",
+      "providers": [
+        "google"
+      ],
+      "regionOverrides": {
+        "us": []
+      }
+    },
+    "grok-4.5": {
+      "family": "xai",
+      "route": "xai",
+      "providers": [
+        "xai"
+      ],
+      "regionOverrides": {
+        "us": []
+      }
+    },
+    "grok-4.6": {
+      "family": "xai",
+      "route": "xai",
+      "providers": [
+        "xai"
+      ],
+      "regionOverrides": {}
+    },
+    "grok-4.7": {
+      "family": "xai",
+      "route": "xai",
+      "providers": [
+        "xai"
+      ],
+      "regionOverrides": {}
+    },
+    "gemini-4-argon": {
+      "family": "google",
+      "route": "google",
+      "providers": [
+        "google"
+      ],
+      "regionOverrides": {
+        "us": []
       }
     }
   }

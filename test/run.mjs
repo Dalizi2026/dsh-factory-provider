@@ -338,7 +338,7 @@ test("catalog: model entries carry limits and per-model effort selectors", () =>
   assert.deepEqual(generic[0].reasoningEfforts, { low: "low", high: "high", max: "max" });
   assert.deepEqual(generic.find((e) => e.id === "minimax-m3").reasoningEfforts, { high: "high" });
   // Deprecated / other-region ids probed against the live API are excluded.
-  assert.ok(!generic.some((e) => ["glm-5.2", "glm-5.2-fast", "kimi-k2.6", "kimi-k2.7-code", "glm-5.1"].includes(e.id)));
+  assert.ok(!generic.some((e) => ["kimi-k2.6", "kimi-k2.7-code", "glm-5.1"].includes(e.id)));
 
   // Every Claude entry carries pi-ai's forceAdaptiveThinking compat: Factory's
   // bedrock_anthropic route refuses budget thinking with a 400.
@@ -384,7 +384,7 @@ test("catalog: refreshed against the live edge — dot id, no region-gated, new 
   });
 
   const openai = buildModelEntries("openai").map((e) => e.id);
-  assert.ok(!openai.includes("gpt-5.5-pro") && !openai.includes("gpt-5.3-codex-fast"));
+  assert.ok(openai.includes("gpt-5.5-pro") && openai.includes("gpt-5.3-codex-fast"));
 });
 
 test("catalog: provider entries point at the loopback gateway with per-route defaults", () => {

@@ -63,8 +63,8 @@ test('saved preference changes affect new sessions only; existing Claude/Core/GP
   assert.equal((await router.select(coreArgs)).provider, 'baseten');
 });
 
-test('all 38 catalog models have audited routing and each selected backend belongs to its model', () => {
-  assert.equal(Object.keys(data.models).length, 38);
+test('all catalog models have audited routing and each selected backend belongs to its model', () => {
+  assert.equal(Object.keys(data.models).length, Object.values(ROUTES).flatMap(r=>r.models).length);
   assert.deepEqual(Object.keys(data.models).sort(), Object.values(ROUTES).flatMap(r=>r.models).map(m=>m.id).sort());
   const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.233.0-model-additions.json', import.meta.url)));
   for (const m of evidence.models) assert.deepEqual(data.models[m.id].providers, m.apiProviders, m.id);

@@ -4,15 +4,15 @@ import fs from 'node:fs';
 import { FACTORY_MODEL_LIMITS, FACTORY_LIMITS_VERSION, factoryModelLimits, clampFactoryOutputTokens } from '../lib/model-limits.js';
 import { ROUTES, buildModelEntries } from '../lib/catalog.js';
 import { alignedCompactionBudget } from '../lib/context.js';
-const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.233.0-budgets.json', import.meta.url)));
-// Keep the original collection intact; independently extract the additions from the same CLI binary.
-const additions = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.233.0-model-additions.json', import.meta.url)));
+const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.241.0-models.json', import.meta.url)));
+const additions = evidence;
 const retired = ['deepseek-v4-pro', 'deepseek-v4-flash-0731'];
-const activeEvidence = [...evidence.models.filter(m => !retired.includes(m.id)), ...additions.models];
+const activeEvidence = evidence.models.map(m => ({...m, maxInputTokens:m.limits.maxInputTokens,
+  maxOutputTokens:m.limits.maxOutputTokens, threshold:m.limits.defaultCompactionLimit, explicitTotal:m.limits.contextWindow}));
 
-test('limits: all 38 models match the independently collected CLI snapshot', () => {
+test('limits: all catalog models match the independently collected CLI snapshot', () => {
   assert.equal(FACTORY_LIMITS_VERSION, evidence.version);
-  assert.equal(Object.keys(FACTORY_MODEL_LIMITS).length, 38);
+  assert.equal(Object.keys(FACTORY_MODEL_LIMITS).length, evidence.models.length);
   assert.equal(additions.binarySHA256, evidence.binarySHA256);
   const ids = Object.values(ROUTES).flatMap(r=>r.models).map(m=>m.id).sort();
   assert.deepEqual(Object.keys(FACTORY_MODEL_LIMITS).sort(), ids);

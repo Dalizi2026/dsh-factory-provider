@@ -1,0 +1,759 @@
+{
+  "claude-sonnet-4-6": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 1.2,
+    "promotions": []
+  },
+  "claude-sonnet-5": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "claude-sonnet-5-5": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "claude-opus-4-7": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 2.0,
+    "promotions": []
+  },
+  "claude-opus-4-8": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 2.0,
+    "promotions": []
+  },
+  "claude-opus-4-8-fast": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 4.0,
+    "promotions": []
+  },
+  "claude-opus-5": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 2.0,
+    "promotions": []
+  },
+  "claude-opus-5-fast": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 4.0,
+    "promotions": []
+  },
+  "claude-opus-5-5": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 1.6,
+    "promotions": []
+  },
+  "claude-opus-5-5-fast": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 3.2,
+    "promotions": []
+  },
+  "claude-fable-5": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 4.0,
+    "promotions": []
+  },
+  "claude-fable-5.1": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 4.0,
+    "promotions": []
+  },
+  "claude-haiku-4-5-20251001": {
+    "defaultEffort": "off",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.4,
+    "promotions": []
+  },
+  "gpt-5.2": {
+    "defaultEffort": "low",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.7,
+    "promotions": []
+  },
+  "gpt-5.3-codex": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.7,
+    "promotions": []
+  },
+  "gpt-5.4": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 1.0,
+    "promotions": []
+  },
+  "gpt-5.4-fast": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 2.0,
+    "promotions": []
+  },
+  "gpt-5.4-mini": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.3,
+    "promotions": []
+  },
+  "gpt-5.4-mini-fast": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.6,
+    "promotions": []
+  },
+  "gpt-5.5": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 2.0,
+    "promotions": []
+  },
+  "gpt-5.5-fast": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 5.0,
+    "promotions": []
+  },
+  "gpt-5.6-sol": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 2.0,
+    "promotions": []
+  },
+  "gpt-5.6-sol-fast": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 4.0,
+    "promotions": []
+  },
+  "gpt-5.6-terra": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "gpt-5.6-luna": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.08,
+    "promotions": []
+  },
+  "gpt-6-astra": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 4.0,
+    "promotions": []
+  },
+  "gpt-6-sol": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "gpt-6-luna": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.04,
+    "promotions": []
+  },
+  "kimi-k3": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "high",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 1.2,
+    "promotions": []
+  },
+  "qwen3.8-max": {
+    "defaultEffort": "xhigh",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "xhigh"
+    ],
+    "billingPool": "core",
+    "images": false,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "deepseek-v4.1-flash": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "high",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 0.12,
+    "promotions": []
+  },
+  "minimax-m2.7": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "high"
+    ],
+    "billingPool": "core",
+    "images": false,
+    "tokenMultiplier": 0.12,
+    "promotions": []
+  },
+  "minimax-m3": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "high"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 0.12,
+    "promotions": []
+  },
+  "glm-5.3": {
+    "defaultEffort": "max",
+    "supportedEfforts": [
+      "low",
+      "high",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": false,
+    "tokenMultiplier": 0.56,
+    "promotions": []
+  },
+  "glm-5.3-flash": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "high",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 0.06,
+    "promotions": []
+  },
+  "inkling": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "minimal",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 0.4,
+    "promotions": []
+  },
+  "nemotron-3-ultra": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "high"
+    ],
+    "billingPool": "core",
+    "images": false,
+    "tokenMultiplier": 0.24,
+    "promotions": []
+  },
+  "gpt-6.1-sol": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "claude-haiku-5-5": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.04,
+    "promotions": []
+  },
+  "mistral-large-4": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "high"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 0.544,
+    "promotions": [
+      {
+        "discount": 0.5,
+        "startsAt": "2026-10-06T00:00:00Z",
+        "expiresAt": "2026-10-20T00:00:00Z"
+      }
+    ]
+  },
+  "mistral-medium-3.5": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "high"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 0.6,
+    "promotions": []
+  },
+  "glm-5.2": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "high",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": false,
+    "tokenMultiplier": 0.56,
+    "promotions": []
+  },
+  "glm-5.2-fast": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "high",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": false,
+    "tokenMultiplier": 0.84,
+    "promotions": []
+  },
+  "gpt-5.5-pro": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 12.0,
+    "promotions": []
+  },
+  "gpt-5.3-codex-fast": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 1.4,
+    "promotions": []
+  },
+  "gemini-3.1-pro-preview": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "gemini-3.8-flash": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.6,
+    "promotions": [
+      {
+        "discount": 0.5,
+        "startsAt": "2026-08-17T21:10:19Z",
+        "expiresAt": "2027-01-01T08:00:00Z"
+      }
+    ]
+  },
+  "gemini-3.7-flash": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.6,
+    "promotions": [
+      {
+        "discount": 0.5,
+        "startsAt": "2026-08-17T21:10:19Z",
+        "expiresAt": "2027-01-01T08:00:00Z"
+      }
+    ]
+  },
+  "gemini-3.6-flash": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.6,
+    "promotions": []
+  },
+  "gemini-3.5-flash": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "minimal",
+      "low",
+      "medium",
+      "high"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.6,
+    "promotions": []
+  },
+  "gemini-3-flash-preview": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "minimal",
+      "low",
+      "medium",
+      "high"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.2,
+    "promotions": []
+  },
+  "grok-4.5": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "grok-4.6": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "grok-4.7": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.8,
+    "promotions": []
+  },
+  "gemini-4-argon": {
+    "defaultEffort": "medium",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 1.6,
+    "promotions": [
+      {
+        "discount": 0.5,
+        "startsAt": "2026-10-13T16:00:00Z",
+        "expiresAt": "2026-12-01T08:00:00Z",
+        "label": "50% off"
+      }
+    ]
+  }
+}

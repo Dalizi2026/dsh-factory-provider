@@ -5,10 +5,12 @@
 #     standard is exhausted.
 #   factory-a (api: anthropic-messages) — Claude models (verified live against
 #     the official CLI's replayed requests; draws standard quota).
-#   factory-o (api: openai-responses) — GPT models on the azure_openai path
+#   factory-o (api: openai-responses) — GPT models on official per-model paths
 #     (draws standard quota; identity gate reads the `instructions` field).
+#   factory-google — Gemini native streaming through a DSH-compatible profile.
+#   factory-xai (api: openai-responses) — Grok models (standard quota).
 # All point at this plugin's loopback gateway on the dsh web port; the gateway
-# injects the Factory credential (droid CLI login or FACTORY_API_KEY) per
+# injects the Factory credential (selected API key or FACTORY_API_KEY) per
 # request. The plugin owns these provider keys; it removes them again on
 # disposal.
 - insert:
@@ -20,13 +22,15 @@
           - generic
           - anthropic
           - openai
+          - google
+          - xai
         # Anthropic needs explicit cache breakpoints (measured 0% -> 99% once
         # placed). auto leaves a client that manages its own caching alone;
         # rewrite takes over placement; passthrough changes nothing.
         anthropicCacheMode: auto
         anthropicCacheTTL: 5m
         anthropicPreferOfficial: false
-        # CLI 0.233.0 input/output budgets, adapted per-model compaction defaults.
+        # CLI 0.241.0 input/output budgets, adapted per-model compaction defaults.
         factoryContextAlignment: true
         factoryRequestRecovery: true
         quotaFloat: false

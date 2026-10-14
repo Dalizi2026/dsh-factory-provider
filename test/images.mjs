@@ -46,16 +46,25 @@ test('multi-image preparation: long text triggers history recovery; abort stops 
  const controller=new AbortController();controller.abort();const native=store();await assert.rejects(prepareAdaptiveImages({...options(3),signal:controller.signal},profile,native));assert.equal(native.calls.length,0);
 });
 
-async function nativeFixture({config={},storeImpl=store(),sdkEvents}={}){
+async function nativeFixture({config={},storeImpl=store(),sdkEvents,reasoning=false}={}){
  const [{Context},{PiAiAdapter}]=await Promise.all([host('cordis'),host('dsh-llm-pi-ai')]);
- const ctx=new Context(),seen=[],headers=[],profiles=new Map();let settings=config;
- for(const provider of ['factory-a','factory-g','factory-o','unrelated'])profiles.set(provider,{...profile,modelErrors:new Map(),configuredMaxTokens:new Map(),streamIdleTimeoutMs:60000});
- const model={id:'claude-sonnet-5-5',name:'fixture',api:'anthropic-messages',provider:'offline',input:['text','image'],contextWindow:1000000,maxTokens:128000,reasoning:false};
- const models={getModel:(_provider,id)=>({...model,id}),streamSimple:async function*(_model,context,sdk){seen.push(context);headers.push(sdk.headers);if(sdkEvents){yield* sdkEvents(seen.length);return;}yield {type:'done',reason:'stop',message:{role:'assistant',content:[{type:'text',text:'ok'}],stopReason:'stop',usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2},api:'anthropic-messages',provider:'offline',model:'fixture'}};}};
+ const ctx=new Context(),seen=[],headers=[],sdkOptions=[],profiles=new Map();let settings=config;
+ for(const provider of ['factory-a','factory-g','factory-o','factory-google','factory-xai','unrelated'])profiles.set(provider,{...profile,modelErrors:new Map(),configuredMaxTokens:new Map(),streamIdleTimeoutMs:60000});
+ const server=http.createServer(async(req,res)=>{
+  let raw='';for await(const chunk of req)raw+=chunk;
+  const body=JSON.parse(raw);
+  seen.push({messages:body.contents.map(m=>({role:m.role,content:m.parts.map(p=>p.inlineData?{type:'image',data:p.inlineData.data,mimeType:p.inlineData.mimeType}:{type:'text',text:p.text??''})}))});
+  sdkOptions.push({reasoning:body.generationConfig.thinkingConfig.thinkingLevel?.toLowerCase()});headers.push(req.headers);
+  res.setHeader('content-type','text/event-stream');res.end('data: '+JSON.stringify({candidates:[{content:{parts:[{text:'ok'}]},finishReason:'STOP'}],usageMetadata:{promptTokenCount:1,candidatesTokenCount:1,totalTokenCount:2}})+'\n\n');
+ });
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));server.unref();
+ const googleBase=`http://127.0.0.1:${server.address().port}/fixture/google`;
+ const model={id:'claude-sonnet-5-5' ,name:'fixture',api:'anthropic-messages',provider:'offline',input:['text','image'],contextWindow:1000000,maxTokens:128000,reasoning};
+ const models={getModel:(_provider,id)=>({...model,id,...id.startsWith('gemini-')?{baseUrl:googleBase,maxTokens:65536}:{}}),streamSimple:async function*(_model,context,sdk){seen.push(context);headers.push(sdk.headers);sdkOptions.push(sdk);if(sdkEvents){yield* sdkEvents(seen.length);return;}yield {type:'done',reason:'stop',message:{role:'assistant',content:[{type:'text',text:'ok'}],stopReason:'stop',usage:{input:1,output:1,cacheRead:0,cacheWrite:0,totalTokens:2},api:'anthropic-messages',provider:'offline',model:'fixture'}};}};
  const adapter=new PiAiAdapter({profiles:()=>profiles,resolveApiKey:async()=>undefined,resolveAttachments:()=>storeImpl});
  adapter.snapshot={profiles,models};ctx.provide('llm',{registration:()=>({adapter})});const state={},records=[];
- const dispose=installAdaptiveImages(ctx,()=>settings,state,r=>records.push(r));await new Promise(resolve=>setImmediate(resolve));
- return {ctx,adapter,profiles,seen,headers,state,records,store:storeImpl,dispose,setConfig:c=>{settings=c;}};
+ const unpatch=installAdaptiveImages(ctx,()=>settings,state,r=>records.push(r));const dispose=()=>{unpatch();server.close();};await new Promise(resolve=>setImmediate(resolve));
+ return {ctx,adapter,profiles,seen,headers,sdkOptions,state,records,store:storeImpl,dispose,setConfig:c=>{settings=c;}};
 }
 async function consume(stream){const chunks=[];for await(const chunk of stream)chunks.push(chunk);return chunks;}
 test('real native PiAiAdapter: overload is retryable before content even with image preparation off', {skip}, async()=>{
@@ -89,11 +98,23 @@ test('real native adapter: summary metadata is scoped to text/image compaction, 
   assert.equal(f.profiles.get('factory-a').headers['x-dsh-factory-session'],undefined);
  }finally{f.dispose();}
 });
-for(const [provider,model]of [['factory-a','claude-sonnet-5-5'],['factory-a','claude-opus-5-5'],['factory-g','glm-5.3-flash'],['factory-o','gpt-6-sol']])test(`real native PiAiAdapter: ${provider}/${model} sends all 20 fresh images with smaller prepared versions`,{skip},async()=>{
+for(const [provider,model]of [['factory-a','claude-sonnet-5-5'],['factory-a','claude-opus-5-5'],['factory-g','glm-5.3-flash'],['factory-o','gpt-6-sol'],['factory-google','gemini-3.8-flash'],['factory-xai','grok-4.7']])test(`real native PiAiAdapter: ${provider}/${model} sends all 20 fresh images with smaller prepared versions`,{skip},async()=>{
  const f=await nativeFixture();try{
   const request={...options(20),provider,model};const original=JSON.stringify(request);const call=await f.adapter.prepareCall(provider,model);const chunks=await consume(call.stream(request));
   assert.equal(chunks.at(-1).reason.kind,'stop');assert.equal(f.seen.length,1);const images=f.seen[0].messages.flatMap(m=>Array.isArray(m.content)?m.content:[]).filter(b=>b.type==='image');assert.equal(images.length,20);
   assert(images.every(b=>Buffer.byteLength(b.data)<204800*4/3));assert.equal(JSON.stringify(request),original);assert.equal(f.profiles.get(provider).requestImageMaxBytes,1048576);assert.equal(f.state.state,'active');
+ }finally{f.dispose();}
+});
+test('real native adapter: CLI reasoning defaults precede SDK off translation, including image opt-out', {skip}, async()=>{
+ const f=await nativeFixture({config:{factoryAdaptiveImages:false},reasoning:true});try{
+  for(const [provider,model,expected]of [['factory-a','claude-haiku-5-5','medium'],['factory-google','gemini-3.8-flash','high'],['factory-xai','grok-4.7','high'],['factory-g','mistral-large-4','high']]){
+   const request={...options(0),provider,model};const before=JSON.stringify(request);
+   await consume(f.adapter.stream(request));assert.equal(f.sdkOptions.at(-1).reasoning,expected);assert.equal(JSON.stringify(request),before);
+   const explicit=model.startsWith('mistral-')?'off':'low';
+   await consume(f.adapter.stream({...request,reasoningEffort:explicit}));assert.equal(f.sdkOptions.at(-1).reasoning,explicit==='off'?undefined:explicit);
+   const profileEffort=model.startsWith('mistral-')?'off':'medium';f.profiles.get(provider).reasoning=profileEffort;
+   await consume(f.adapter.stream(request));assert.equal(f.sdkOptions.at(-1).reasoning,profileEffort==='off'?undefined:profileEffort);delete f.profiles.get(provider).reasoning;
+  }
  }finally{f.dispose();}
 });
 test('real native adapter: calls are isolated; disabling, unrelated route, HMR and unload preserve behavior',{skip},async()=>{

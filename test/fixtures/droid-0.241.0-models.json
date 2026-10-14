@@ -1,0 +1,1950 @@
+{
+  "version": "0.241.0",
+  "checkedDate": "2026-10-14",
+  "source": "https://registry.npmjs.org/@factory/cli-darwin-arm64/-/cli-darwin-arm64-0.241.0.tgz",
+  "binarySHA256": "26a8fecf4ea707129044fb46b3db33141ca8f76e755b05a35f4088eef97bae5d",
+  "integrityVerified": true,
+  "providerPaths": {
+    "google": [
+      "/api/llm/o/v1/chat/completions",
+      "/api/llm/g/v1/generate"
+    ],
+    "xai": [
+      "/api/llm/o/v1/responses"
+    ]
+  },
+  "models": [
+    {
+      "id": "claude-sonnet-4-6",
+      "name": "Sonnet 4.6",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 995000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 931000,
+        "maxOutputTokens": 64000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "ki",
+      "registrySource": "\"claude-sonnet-4-6\":{id:\"claude-sonnet-4-6\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Sonnet 4.6\",shortName:\"Sonnet 4.6\",provider:\"anthropic\",apiProviders:S,apiProviderConfig:{vertex_anthropic:{modelId:\"claude-sonnet-4-6\",locations:{eu:\"europe-west1\"}},bedrock_anthropic:{modelId:\"anthropic.claude-sonnet-4-6\"},snowflake:{modelId:\"claude-sonnet-4-6\"}},reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"max\"],default:\"high\"},tier:\"standard\",pdf:!0,contextLimits:ki,thinking:(o)=>ne(o,{supportsDisabledThinking:!0}),disabledForPilots:!1,cost:{tokenMultiplier:1.2},matchPatterns:[/sonnet[^a-z0-9]*4[.-]?6/i,/claude-sonnet-4-6/i]},",
+      "byteOffset": 154269984,
+      "tokenMultiplier": 1.2
+    },
+    {
+      "id": "claude-sonnet-5",
+      "name": "Sonnet 5",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1000000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 872000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "Ee",
+      "registrySource": "\"claude-sonnet-5\":{id:\"claude-sonnet-5\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Sonnet 5\",shortName:\"Sonnet 5\",provider:\"anthropic\",apiProviders:Y,apiProviderConfig:{vertex_anthropic:{modelId:\"claude-sonnet-5\"},bedrock_anthropic:{modelId:\"anthropic.claude-sonnet-5\"},azure_anthropic:{modelId:\"claude-sonnet-5\"}},routingConfig:m.SONNET_5,reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"standard\",pdf:!0,systemPromptReminders:ae,contextLimits:Ee,thinking:(o)=>U(o,!0),disabledForPilots:!1,cost:{tokenMultiplier:0.8,outputTokenMultiplier:5},matchPatterns:[/sonnet[^a-z0-9]*5(?![.\\-\\d])/i,/claude-sonnet-5(?![.\\-\\d])/i]},",
+      "byteOffset": 154270624,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "claude-sonnet-5-5",
+      "name": "Sonnet 5.5",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1000000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 872000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "Ee",
+      "registrySource": "\"claude-sonnet-5-5\":{id:\"claude-sonnet-5-5\",name:\"Sonnet 5.5\",shortName:\"Sonnet 5.5\",provider:\"anthropic\",apiProviders:Y,apiProviderConfig:{anthropic:{modelId:\"claude-sonnet-5-5\"},vertex_anthropic:{modelId:\"claude-sonnet-5-5\"},bedrock_anthropic:{modelId:\"anthropic.claude-sonnet-5-5\"},azure_anthropic:{modelId:\"claude-sonnet-5-5\"}},routingConfig:m.SONNET_5_5,featureFlag:J.ClaudeSonnet55,reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"standard\",pdf:!0,systemPromptReminders:ae,contextLimits:Ee,thinking:bi,compactThroughLatestSignedThinking:!0,supportsMidConversationToolChanges:!0,supportsMidConversationEffortChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:0.8,outputTokenMultiplier:5,cacheReadTokenMultiplier:0.05},matchPatterns:[/sonnet[^a-z0-9]*5[.-]?5/i,/claude-sonnet-5-5/i],newUntil:new Date(\"2026-10-03T18:00:00Z\")},",
+      "byteOffset": 154271294,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "claude-opus-4-7",
+      "name": "Opus 4.7",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "vertex_anthropic",
+          "bedrock_anthropic"
+        ]
+      },
+      "limits": {
+        "contextWindow": 995000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 867000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "x",
+      "registrySource": "\"claude-opus-4-7\":{id:\"claude-opus-4-7\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Opus 4.7\",shortName:\"Opus 4.7\",provider:\"anthropic\",apiProviders:S,apiProviderConfig:{vertex_anthropic:{modelId:\"claude-opus-4-7\"},bedrock_anthropic:{modelId:\"anthropic.claude-opus-4-7\"}},reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"premium\",pdf:!0,systemPromptReminders:ae,contextLimits:x,thinking:(o)=>U(o,!0),disabledForPilots:!1,cost:{tokenMultiplier:2},regionOverrides:{eu:{apiProviders:[\"vertex_anthropic\",\"bedrock_anthropic\"]}},matchPatterns:[/opus[^a-z0-9]*4[.-]?7/i,/claude-opus-4-7/i]},",
+      "byteOffset": 154273526,
+      "tokenMultiplier": 2.0
+    },
+    {
+      "id": "claude-opus-4-8",
+      "name": "Opus 4.8",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic",
+        "snowflake"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "vertex_anthropic",
+          "bedrock_anthropic"
+        ]
+      },
+      "limits": {
+        "contextWindow": 995000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 867000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "x",
+      "registrySource": "\"claude-opus-4-8\":{id:\"claude-opus-4-8\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Opus 4.8\",shortName:\"Opus 4.8\",provider:\"anthropic\",apiProviders:[...Y,\"snowflake\"],apiProviderConfig:{vertex_anthropic:{modelId:\"claude-opus-4-8\"},bedrock_anthropic:{modelId:\"anthropic.claude-opus-4-8\"},azure_anthropic:{modelId:\"claude-opus-4-8\"},snowflake:{modelId:\"claude-opus-4-8\"}},routingConfig:m.OPUS_48,reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"premium\",pdf:!0,systemPromptReminders:ae,contextLimits:x,thinking:(o)=>U(o,!0),supportsMidConversationToolChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:2},regionOverrides:{eu:{apiProviders:[\"vertex_anthropic\",\"bedrock_anthropic\"]}},matchPatterns:[/opus[^a-z0-9]*4[.-]?8/i,/claude-opus-4-8/i]},",
+      "byteOffset": 154274926,
+      "tokenMultiplier": 2.0
+    },
+    {
+      "id": "claude-opus-4-8-fast",
+      "name": "Opus 4.8 Fast Mode",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 995000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 867000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "x",
+      "registrySource": "\"claude-opus-4-8-fast\":{id:\"claude-opus-4-8-fast\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Opus 4.8 Fast Mode\",shortName:\"Opus 4.8 Fast Mode\",baseVariant:\"claude-opus-4-8\",provider:\"anthropic\",apiProviders:[\"anthropic\"],reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"premium\",pdf:!0,systemPromptReminders:ae,contextLimits:x,thinking:(o)=>U(o,!0),anthropicFastMode:!0,supportsMidConversationToolChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:4},matchPatterns:[/opus[^a-z0-9]*4[.-]?8[^a-z0-9]*fast/i,/claude-opus-4-8-fast/i]},",
+      "byteOffset": 154275719,
+      "tokenMultiplier": 4.0
+    },
+    {
+      "id": "claude-opus-5",
+      "name": "Opus 5",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic",
+        "snowflake"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "vertex_anthropic",
+          "bedrock_anthropic"
+        ]
+      },
+      "limits": {
+        "contextWindow": 995000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 867000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "x",
+      "registrySource": "\"claude-opus-5\":{id:\"claude-opus-5\",name:\"Opus 5\",shortName:\"Opus 5\",provider:\"anthropic\",apiProviders:[...Y,\"snowflake\"],apiProviderConfig:{vertex_anthropic:{modelId:\"claude-opus-5\"},bedrock_anthropic:{modelId:\"anthropic.claude-opus-5\"},azure_anthropic:{modelId:\"claude-opus-5\"},snowflake:{modelId:\"claude-opus-5\"}},routingConfig:m.OPUS_5,reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"premium\",pdf:!0,systemPromptReminders:[\"no-comments\",\"plain-prose\"],contextLimits:x,thinking:(o)=>U(o,!0),supportsMidConversationToolChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:2},regionOverrides:{eu:{apiProviders:[\"vertex_anthropic\",\"bedrock_anthropic\"]}},matchPatterns:[/opus[^a-z0-9]*5(?![.\\-\\d])/i,/claude-opus-5(?![.\\-\\d])/i],newUntil:new Date(\"2026-07-29T00:00:00Z\")},",
+      "byteOffset": 154276303,
+      "tokenMultiplier": 2.0
+    },
+    {
+      "id": "claude-opus-5-fast",
+      "name": "Opus 5 Fast Mode",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 995000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 867000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "x",
+      "registrySource": "\"claude-opus-5-fast\":{id:\"claude-opus-5-fast\",name:\"Opus 5 Fast Mode\",shortName:\"Opus 5 Fast Mode\",baseVariant:\"claude-opus-5\",provider:\"anthropic\",apiProviders:[\"anthropic\"],reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"premium\",pdf:!0,systemPromptReminders:[\"no-comments\",\"plain-prose\"],contextLimits:x,thinking:(o)=>U(o,!0),anthropicFastMode:!0,supportsMidConversationToolChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:4},matchPatterns:[/opus[^a-z0-9]*5[^a-z0-9]*fast/i,/claude-opus-5-fast/i],newUntil:new Date(\"2026-07-29T00:00:00Z\")},",
+      "byteOffset": 154277120,
+      "tokenMultiplier": 4.0
+    },
+    {
+      "id": "claude-opus-5-5",
+      "name": "Opus 5.5",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic",
+        "snowflake"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1000000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 872000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "Ee",
+      "registrySource": "\"claude-opus-5-5\":{id:\"claude-opus-5-5\",name:\"Opus 5.5\",shortName:\"Opus 5.5\",provider:\"anthropic\",apiProviders:[...Y,\"snowflake\"],apiProviderConfig:{vertex_anthropic:{modelId:\"claude-opus-5-5\"},bedrock_anthropic:{modelId:\"anthropic.claude-opus-5-5\"},azure_anthropic:{modelId:\"claude-opus-5-5\"},snowflake:{modelId:\"claude-opus-5-5\"}},routingConfig:m.OPUS_5_5,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"premium\",pdf:!0,systemPromptReminders:[\"no-comments\",\"plain-prose\"],contextLimits:Ee,thinking:io,compactThroughLatestSignedThinking:!0,supportsMidConversationToolChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:1.6,cacheReadTokenMultiplier:0.05,outputTokenMultiplier:5},matchPatterns:[/opus[^a-z0-9]*5[.-]?5/i,/claude-opus-5-5/i],newUntil:new Date(\"2026-09-27T18:00:00Z\")},",
+      "byteOffset": 154277713,
+      "tokenMultiplier": 1.6
+    },
+    {
+      "id": "claude-opus-5-5-fast",
+      "name": "Opus 5.5 Fast Mode",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "anthropic"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1000000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 872000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "Ee",
+      "registrySource": "\"claude-opus-5-5-fast\":{id:\"claude-opus-5-5-fast\",name:\"Opus 5.5 Fast Mode\",shortName:\"Opus 5.5 Fast Mode\",baseVariant:\"claude-opus-5-5\",provider:\"anthropic\",apiProviders:[\"anthropic\"],reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"premium\",pdf:!0,systemPromptReminders:[\"no-comments\",\"plain-prose\"],contextLimits:Ee,thinking:io,compactThroughLatestSignedThinking:!0,anthropicFastMode:!0,supportsMidConversationToolChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:3.2,cacheReadTokenMultiplier:0.05,outputTokenMultiplier:5},matchPatterns:[/opus[^a-z0-9]*5[.-]?5[^a-z0-9]*fast/i,/claude-opus-5-5-fast/i],newUntil:new Date(\"2026-09-27T18:00:00Z\")},",
+      "byteOffset": 154278538,
+      "tokenMultiplier": 3.2
+    },
+    {
+      "id": "claude-fable-5",
+      "name": "Fable 5",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "vertex_anthropic"
+        ]
+      },
+      "limits": {
+        "contextWindow": 995000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 867000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "x",
+      "registrySource": "\"claude-fable-5\":{id:\"claude-fable-5\",name:\"Fable 5\",shortName:\"Fable 5\",provider:\"anthropic\",apiProviders:S,apiProviderConfig:{vertex_anthropic:{modelId:\"claude-fable-5\"},bedrock_anthropic:{modelId:\"anthropic.claude-fable-5\"}},routingConfig:m.FABLE_5,reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"premium\",explicitOptInRequirement:It,zdrApiProviders:[\"anthropic\"],pdf:!0,systemPromptReminders:[\"no-comments\",\"plain-prose\"],contextLimits:x,thinking:U,neutralTranscriptSerialization:!0,refusalFallbackModels:[\"claude-opus-5\"],supportsMidConversationToolChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:4,outputTokenMultiplier:5},regionOverrides:{eu:{apiProviders:[\"vertex_anthropic\"]}},matchPatterns:[/fable[^a-z0-9]*5(?![.\\-\\d])/i,/claude-fable-5(?![.\\-\\d])/i],newUntil:new Date(\"2026-07-05T00:00:00Z\")},",
+      "byteOffset": 154279230,
+      "tokenMultiplier": 4.0
+    },
+    {
+      "id": "claude-fable-5.1",
+      "name": "Fable 5.1",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "vertex_anthropic"
+        ]
+      },
+      "limits": {
+        "contextWindow": 995000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 867000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "x",
+      "registrySource": "\"claude-fable-5.1\":{id:\"claude-fable-5.1\",name:\"Fable 5.1\",shortName:\"Fable 5.1\",provider:\"anthropic\",apiProviders:S,apiProviderConfig:{anthropic:{modelId:\"claude-fable-5-1\"},vertex_anthropic:{modelId:\"claude-fable-5-1\"},bedrock_anthropic:{modelId:\"anthropic.claude-fable-5-1\"}},routingConfig:m.FABLE_5_1,reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"premium\",explicitOptInRequirement:It,zdrApiProviders:[\"anthropic\",\"vertex_anthropic\"],pdf:!0,systemPromptReminders:[\"no-comments\",\"parallel-tool-calls\",\"plain-prose\"],contextLimits:x,thinking:io,neutralTranscriptSerialization:!0,compactThroughLatestSignedThinking:!0,refusalFallbackModels:[\"claude-opus-5\"],supportsMidConversationToolChanges:!0,supportsMidConversationEffortChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:4,cacheReadTokenMultiplier:0.025,outputTokenMultiplier:5},regionOverrides:{eu:{apiProviders:[\"vertex_anthropic\"]}},matchPatterns:[/fable[^a-z0-9]*5[.-]?1(?![.\\d])/i,/claude-fable-5[.-]?1/i],newUntil:new Date(\"2026-09-06T00:00:00Z\")},",
+      "byteOffset": 154280086,
+      "tokenMultiplier": 4.0
+    },
+    {
+      "id": "claude-haiku-4-5-20251001",
+      "name": "Haiku 4.5",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultReasoningEffort": "off",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic"
+      ],
+      "regionOverrides": {
+        "us": [
+          "vertex_anthropic",
+          "bedrock_anthropic"
+        ]
+      },
+      "limits": {
+        "contextWindow": 200000,
+        "capacityKind": "model-context",
+        "maxInputTokens": 180000,
+        "maxOutputTokens": 32000,
+        "defaultCompactionLimit": 180000,
+        "inputByEffort": {
+          "off": 180000,
+          "low": 153904,
+          "medium": 145712,
+          "high": 133424
+        }
+      },
+      "expression": "ee",
+      "registrySource": "\"claude-haiku-4-5-20251001\":{id:\"claude-haiku-4-5-20251001\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Haiku 4.5\",shortName:\"Haiku 4.5\",provider:\"anthropic\",apiProviders:S,apiProviderConfig:{vertex_anthropic:{modelId:\"claude-haiku-4-5@20251001\",locations:{eu:\"europe-west1\"}},bedrock_anthropic:{modelId:\"anthropic.claude-haiku-4-5-20251001-v1:0\"}},reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\"],default:\"off\"},tier:\"standard\",pdf:!0,contextLimits:ee,thinking:ie,disabledForPilots:!1,cost:{tokenMultiplier:0.4},regionOverrides:{us:se},matchPatterns:[/haiku[^a-z0-9]*4\\.?5/i,/claude-haiku-4-5/i]},",
+      "byteOffset": 154282346,
+      "tokenMultiplier": 0.4
+    },
+    {
+      "id": "gpt-5.2",
+      "name": "GPT-5.2",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "low",
+      "apiProviders": [
+        "openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 400000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 272000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "le",
+      "registrySource": "\"gpt-5.2\":{id:\"gpt-5.2\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.2\",shortName:\"GPT-5.2\",provider:\"openai\",apiProviders:[\"openai\",\"azure_openai\"],routingConfig:m.GPT52,reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\"],default:\"low\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,contextLimits:le,apiRequest:C({verbosity:\"low\"}),disabledForPilots:!1,cost:{tokenMultiplier:0.7,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?2(?![.\\d])/i]},",
+      "byteOffset": 154287225,
+      "tokenMultiplier": 0.7
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "name": "GPT-5.3-Codex",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {
+        "us": []
+      },
+      "limits": {
+        "contextWindow": 400000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 272000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "le",
+      "registrySource": "\"gpt-5.3-codex\":{id:\"gpt-5.3-codex\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.3-Codex\",shortName:\"GPT-5.3-Codex\",provider:\"openai\",apiProviders:[\"openai\",\"azure_openai\"],routingConfig:m.GPT53_CODEX,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"medium\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,contextLimits:le,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:0.7,promotions:[M]},regionOverrides:{us:h},matchPatterns:[/gpt[^a-z0-9]*5[.-]?3[^a-z0-9]*codex(?![.\\d])/i,/codex[^a-z0-9]*gpt[^a-z0-9]*5[.-]?3(?![.\\d])/i]},",
+      "byteOffset": 154288315,
+      "tokenMultiplier": 0.7
+    },
+    {
+      "id": "gpt-5.4",
+      "name": "GPT-5.4",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-5.4\":{id:\"gpt-5.4\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.4\",shortName:\"GPT-5.4\",provider:\"openai\",apiProviders:[\"openai\",\"bedrock_openai\",\"azure_openai\",\"databricks\"],apiProviderConfig:{bedrock_openai:{modelId:\"openai.gpt-5.4\"},databricks:{modelId:\"databricks-gpt-5-4\"}},bedrockOpenAIEndpoint:\"mantle\",routingConfig:m.GPT54,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"medium\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,bedrockOpenAIRegion:\"us-west-2\",regionOverrides:{eu:{apiProviders:[\"openai\"]}},contextLimits:P,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:1,outputTokenMultiplier:6,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?4(?![.\\d])/i]},",
+      "byteOffset": 154289546,
+      "tokenMultiplier": 1.0
+    },
+    {
+      "id": "gpt-5.4-fast",
+      "name": "GPT-5.4 Fast Mode",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-5.4-fast\":{id:\"gpt-5.4-fast\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.4 Fast Mode\",shortName:\"GPT-5.4 Fast Mode\",baseVariant:\"gpt-5.4\",provider:\"openai\",apiProviders:[\"openai\",\"azure_openai\"],routingConfig:m.GPT54,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"medium\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,contextLimits:P,apiRequest:Ie,disabledForPilots:!1,cost:{tokenMultiplier:2,outputTokenMultiplier:6,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?4[^a-z0-9]*fast/i]},",
+      "byteOffset": 154290326,
+      "tokenMultiplier": 2.0
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "name": "GPT-5.4 Mini",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 400000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 272000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "le",
+      "registrySource": "\"gpt-5.4-mini\":{id:\"gpt-5.4-mini\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.4 Mini\",shortName:\"GPT-5.4 Mini\",provider:\"openai\",apiProviders:[\"openai\",\"azure_openai\"],routingConfig:m.GPT54_MINI,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"high\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,contextLimits:le,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:0.3,outputTokenMultiplier:6,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?4[^a-z0-9]*mini/i]},",
+      "byteOffset": 154290920,
+      "tokenMultiplier": 0.3
+    },
+    {
+      "id": "gpt-5.4-mini-fast",
+      "name": "GPT-5.4 Mini Fast Mode",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 400000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 272000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "le",
+      "registrySource": "\"gpt-5.4-mini-fast\":{id:\"gpt-5.4-mini-fast\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.4 Mini Fast Mode\",shortName:\"GPT-5.4 Mini Fast Mode\",baseVariant:\"gpt-5.4-mini\",provider:\"openai\",apiProviders:[\"openai\",\"azure_openai\"],routingConfig:m.GPT54_MINI,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"high\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,contextLimits:le,apiRequest:Ie,disabledForPilots:!1,cost:{tokenMultiplier:0.6,outputTokenMultiplier:6,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?4[^a-z0-9]*mini[^a-z0-9]*fast/i]},",
+      "byteOffset": 154291487,
+      "tokenMultiplier": 0.6
+    },
+    {
+      "id": "gpt-5.5",
+      "name": "GPT-5.5",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "snowflake",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-5.5\":{id:\"gpt-5.5\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.5\",shortName:\"GPT-5.5\",provider:\"openai\",apiProviders:[\"openai\",\"bedrock_openai\",\"azure_openai\",\"snowflake\",\"databricks\"],apiProviderConfig:{bedrock_openai:{modelId:\"openai.gpt-5.5\"},snowflake:{modelId:\"openai-gpt-5.5\"},databricks:{modelId:\"databricks-gpt-5-5\"}},bedrockOpenAIEndpoint:\"mantle\",routingConfig:m.GPT55,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"medium\"},tier:\"premium\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,bedrockOpenAIRegion:\"us-east-2\",regionOverrides:{eu:{apiProviders:[\"openai\"]}},contextLimits:P,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:2,outputTokenMultiplier:6,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?5(?![.\\d])/i]},",
+      "byteOffset": 154292126,
+      "tokenMultiplier": 2.0
+    },
+    {
+      "id": "gpt-5.5-fast",
+      "name": "GPT-5.5 Fast Mode",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-5.5-fast\":{id:\"gpt-5.5-fast\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.5 Fast Mode\",shortName:\"GPT-5.5 Fast Mode\",baseVariant:\"gpt-5.5\",provider:\"openai\",apiProviders:[\"openai\",\"azure_openai\"],routingConfig:m.GPT55,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"medium\"},tier:\"premium\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,contextLimits:P,apiRequest:Ie,disabledForPilots:!1,cost:{tokenMultiplier:5,outputTokenMultiplier:6,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?5[^a-z0-9]*fast/i]},",
+      "byteOffset": 154292954,
+      "tokenMultiplier": 5.0
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "name": "GPT-5.6 Sol",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "snowflake",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-5.6-sol\":{id:\"gpt-5.6-sol\",name:\"GPT-5.6 Sol\",shortName:\"GPT-5.6 Sol\",provider:\"openai\",apiProviders:to,apiProviderConfig:{bedrock_openai:{modelId:\"openai.gpt-5.6-sol\"},snowflake:{modelId:\"openai-gpt-5.6-sol\"},databricks:{modelId:\"databricks-gpt-5-6-sol\"}},routingConfig:m.GPT56_SOL,reasoningEffort:{supported:[\"none\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"premium\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,bedrockOpenAIRegion:\"us-east-2\",regionOverrides:{eu:{apiProviders:[\"openai\"]}},contextLimits:P,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:2,outputTokenMultiplier:5,promotions:[M,Pt]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?6[^a-z0-9]*sol(?![^a-z0-9]*fast)/i],newUntil:new Date(\"2026-07-14T00:00:00Z\")},",
+      "byteOffset": 154294060,
+      "tokenMultiplier": 2.0
+    },
+    {
+      "id": "gpt-5.6-sol-fast",
+      "name": "GPT-5.6 Sol Fast Mode",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-5.6-sol-fast\":{id:\"gpt-5.6-sol-fast\",name:\"GPT-5.6 Sol Fast Mode\",shortName:\"GPT-5.6 Sol Fast Mode\",baseVariant:\"gpt-5.6-sol\",provider:\"openai\",apiProviders:[\"openai\",\"azure_openai\"],routingConfig:m.GPT56_SOL,reasoningEffort:{supported:[\"none\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"premium\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,unreleased:!0,contextLimits:P,apiRequest:Ie,disabledForPilots:!1,cost:{tokenMultiplier:4,outputTokenMultiplier:5,promotions:[M,Pt]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?6[^a-z0-9]*(?:sol[^a-z0-9]*)?fast/i],newUntil:new Date(\"2026-08-04T00:00:00Z\")},",
+      "byteOffset": 154294862,
+      "tokenMultiplier": 4.0
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "name": "GPT-5.6 Terra",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "snowflake",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-5.6-terra\":{id:\"gpt-5.6-terra\",name:\"GPT-5.6 Terra\",shortName:\"GPT-5.6 Terra\",provider:\"openai\",apiProviders:to,apiProviderConfig:{bedrock_openai:{modelId:\"openai.gpt-5.6-terra\"},snowflake:{modelId:\"openai-gpt-5.6-terra\"},databricks:{modelId:\"databricks-gpt-5-6-terra\"}},routingConfig:m.GPT56_TERRA,reasoningEffort:{supported:[\"none\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,bedrockOpenAIRegion:\"us-east-2\",regionOverrides:{eu:{apiProviders:[\"openai\"]}},contextLimits:P,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:0.8,outputTokenMultiplier:6,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?6[^a-z0-9]*terra(?![^a-z0-9]*flex)/i],newUntil:new Date(\"2026-07-14T00:00:00Z\")},",
+      "byteOffset": 154295527,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "name": "GPT-5.6 Luna",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai",
+        "snowflake",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-5.6-luna\":{id:\"gpt-5.6-luna\",name:\"GPT-5.6 Luna\",shortName:\"GPT-5.6 Luna\",provider:\"openai\",apiProviders:to,apiProviderConfig:{bedrock_openai:{modelId:\"openai.gpt-5.6-luna\"},snowflake:{modelId:\"openai-gpt-5.6-luna\"},databricks:{modelId:\"databricks-gpt-5-6-luna\"}},routingConfig:m.GPT56_LUNA,reasoningEffort:{supported:[\"none\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,bedrockOpenAIRegion:\"us-east-2\",regionOverrides:{eu:{apiProviders:[\"openai\"]}},contextLimits:P,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:0.08,outputTokenMultiplier:6,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?6[^a-z0-9]*luna(?![^a-z0-9]*flex)/i],newUntil:new Date(\"2026-07-14T00:00:00Z\")},",
+      "byteOffset": 154297084,
+      "tokenMultiplier": 0.08
+    },
+    {
+      "id": "gpt-6-astra",
+      "name": "GPT-6 Astra",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "bedrock_openai",
+        "snowflake",
+        "azure_openai"
+      ],
+      "regionOverrides": {
+        "eu": []
+      },
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-6-astra\":{id:\"gpt-6-astra\",name:\"GPT-6 Astra\",shortName:\"GPT-6 Astra\",provider:\"openai\",systemPromptReminders:[\"astra-autonomy\"],apiProviders:[\"openai\",\"bedrock_openai\",\"snowflake\",\"azure_openai\"],apiProviderConfig:{bedrock_openai:{modelId:\"openai.gpt-6-astra\"},snowflake:{modelId:\"openai-gpt-6-astra\"}},routingConfig:m.GPT6_ASTRA,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"premium\",pdf:!0,supportsVerbosity:!0,supportsMidConversationToolChanges:!0,bedrockOpenAIRegion:\"us-east-2\",contextLimits:P,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:4,outputTokenMultiplier:5,promotions:[M]},regionOverrides:{eu:{apiProviders:[]}},matchPatterns:[/gpt[^a-z0-9]*6[^a-z0-9]*astra(?![^a-z0-9]*(?:flex|ultra[^a-z0-9]*fast))/i],newUntil:new Date(\"2026-09-08T00:00:00Z\")},",
+      "byteOffset": 154298626,
+      "tokenMultiplier": 4.0
+    },
+    {
+      "id": "gpt-6-sol",
+      "name": "GPT-6 Sol",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-6-sol\":{id:\"gpt-6-sol\",name:\"GPT-6 Sol\",shortName:\"GPT-6 Sol\",provider:\"openai\",apiProviders:[\"openai\",\"bedrock_openai\",\"azure_openai\"],apiProviderConfig:{bedrock_openai:{modelId:\"openai.gpt-6-sol\"}},routingConfig:m.GPT6_SOL,reasoningEffort:{supported:[\"none\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"premium\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,regionOverrides:{eu:{apiProviders:[\"openai\"]}},contextLimits:P,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:0.8,outputTokenMultiplier:5},matchPatterns:[/gpt[^a-z0-9]*6[^a-z0-9]*sol(?![^a-z0-9]*flex)/i],newUntil:new Date(\"2026-09-27T00:00:00Z\")},",
+      "byteOffset": 154301717,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "gpt-6-luna",
+      "name": "GPT-6 Luna",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "bedrock_openai",
+        "azure_openai"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-6-luna\":{id:\"gpt-6-luna\",name:\"GPT-6 Luna\",shortName:\"GPT-6 Luna\",provider:\"openai\",apiProviders:[\"openai\",\"bedrock_openai\",\"azure_openai\"],apiProviderConfig:{bedrock_openai:{modelId:\"openai.gpt-6-luna\"}},routingConfig:m.GPT6_LUNA,reasoningEffort:{supported:[\"none\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,regionOverrides:{eu:{apiProviders:[\"openai\"]}},contextLimits:P,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:0.04,outputTokenMultiplier:5},matchPatterns:[/gpt[^a-z0-9]*6[^a-z0-9]*luna(?![^a-z0-9]*flex)/i],newUntil:new Date(\"2026-09-27T00:00:00Z\")},",
+      "byteOffset": 154303083,
+      "tokenMultiplier": 0.04
+    },
+    {
+      "id": "kimi-k3",
+      "name": "Kimi K3",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "high",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "fireworks",
+        "baseten",
+        "databricks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 262144,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 196608,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 196608
+      },
+      "expression": "I(262144,65536)",
+      "registrySource": "\"kimi-k3\":{id:\"kimi-k3\",name:\"Kimi K3\",shortName:\"Kimi K3\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\",\"baseten\",\"databricks\"],routingConfig:m.KIMI_K3,apiProviderConfig:{fireworks:{...pe,modelId:\"accounts/fireworks/models/kimi-k3\"},baseten:{...Ci,modelId:\"moonshotai/Kimi-K3\"},together:{...Li,modelId:\"moonshotai/Kimi-K3\"},databricks:{...vi,modelId:\"databricks-kimi-k3\"}},reasoningEffort:{supported:[\"off\",\"low\",\"high\",\"max\"],default:\"high\"},chatCompletionRequest:me({toolMessageIncludesName:!0}),tier:\"standard\",billingPool:\"core\",images:!0,pdf:!1,contextLimits:I(262144,65536),disabledForPilots:!1,cost:{tokenMultiplier:1.2,outputTokenMultiplier:5},usesUSBasedInference:!0,newUntil:new Date(\"2026-08-01T00:00:00Z\")},",
+      "byteOffset": 154314730,
+      "tokenMultiplier": 1.2
+    },
+    {
+      "id": "qwen3.8-max",
+      "name": "Qwen3.8 Max",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": false,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "xhigh",
+      "apiProviders": [
+        "fireworks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 262144,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 131072,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 131072
+      },
+      "expression": "I(262144,131072)",
+      "registrySource": "\"qwen3.8-max\":{id:\"qwen3.8-max\",name:\"Qwen3.8 Max\",shortName:\"Qwen3.8 Max\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\"],apiProviderConfig:{fireworks:{...hi,modelId:\"accounts/fireworks/models/qwen3p8-max\"}},reasoningEffort:{supported:[\"low\",\"medium\",\"xhigh\"],default:\"xhigh\"},chatCompletionRequest:Qo(),tier:\"standard\",billingPool:\"core\",images:!1,pdf:!1,contextLimits:I(262144,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.8,outputTokenMultiplier:3},usesUSBasedInference:!0,matchPatterns:[/qwen[^a-z0-9]*3[.-]?8[^a-z0-9]*max/i,/qwen3p8-max/i],newUntil:new Date(\"2026-09-08T00:00:00Z\")},",
+      "byteOffset": 154315496,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "deepseek-v4.1-flash",
+      "name": "DeepSeek V4.1 Flash",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "high",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "fireworks",
+        "baseten",
+        "databricks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1040000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 908928,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(1040000,131072)",
+      "registrySource": "\"deepseek-v4.1-flash\":{id:\"deepseek-v4.1-flash\",name:\"DeepSeek V4.1 Flash\",shortName:\"DeepSeek V4.1 Flash\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\",\"baseten\",\"databricks\"],routingConfig:m.DEEPSEEK_V4_1_FLASH,apiProviderConfig:{fireworks:{...de,modelId:\"accounts/fireworks/models/deepseek-v4p1-flash\"},baseten:{...de,modelId:\"deepseek-ai/DeepSeek-V4.1-Flash\"},databricks:{...Ni,modelId:\"databricks-deepseek-v4-1-flash\"}},reasoningEffort:{supported:[\"off\",\"low\",\"high\",\"max\"],default:\"high\"},chatCompletionRequest:Ce(),tier:\"standard\",billingPool:\"core\",images:!0,pdf:!1,contextLimits:I(1040000,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.12,cacheReadTokenMultiplier:0.024,outputTokenMultiplier:4},usesUSBasedInference:!0,matchPatterns:[/deepseek[^a-z0-9]*v?4(?:[^a-z0-9]*1|p1)[^a-z0-9]*flash/i],newUntil:new Date(\"2026-09-21T00:00:00Z\")},",
+      "byteOffset": 154317098,
+      "tokenMultiplier": 0.12
+    },
+    {
+      "id": "minimax-m2.7",
+      "name": "MiniMax M2.7",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": false,
+      "supportedReasoningEfforts": [
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "fireworks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 260600,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 196600,
+        "maxOutputTokens": 64000,
+        "defaultCompactionLimit": 196600
+      },
+      "expression": "O({maxInputTokens:196600,maxOutputTokens:64000})",
+      "registrySource": "\"minimax-m2.7\":{id:\"minimax-m2.7\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"MiniMax M2.7\",shortName:\"MiniMax M2.7\",provider:\"factory\",apiModelProvider:\"anthropic\",apiProviders:[\"fireworks\"],apiProviderConfig:{fireworks:{modelId:\"accounts/fireworks/models/minimax-m3\"}},reasoningEffort:{supported:[\"high\"],default:\"high\"},thinking:Be,tier:\"standard\",billingPool:\"core\",images:!1,pdf:!1,deprecation:{date:\"2026-08-27\"},contextLimits:O({maxInputTokens:196600,maxOutputTokens:64000}),disabledForPilots:!1,cost:{tokenMultiplier:0.12,outputTokenMultiplier:4},usesUSBasedInference:!0},",
+      "byteOffset": 154319536,
+      "tokenMultiplier": 0.12
+    },
+    {
+      "id": "minimax-m3",
+      "name": "MiniMax M3",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "fireworks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 512000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 448000,
+        "maxOutputTokens": 64000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(512000,64000)",
+      "registrySource": "\"minimax-m3\":{id:\"minimax-m3\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"MiniMax M3\",shortName:\"MiniMax M3\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\"],routingConfig:m.MINIMAX_M3,apiProviderConfig:{fireworks:{...Ot,modelId:\"accounts/fireworks/models/minimax-m3\"},together:{...Si,modelId:\"MiniMaxAI/MiniMax-M3\"}},reasoningEffort:{supported:[\"high\"],default:\"high\"},chatCompletionRequest:et(),systemPromptAdditions:{batchTodoWrite:!0},tier:\"standard\",billingPool:\"core\",featureFlag:J.MinimaxM3,images:!0,pdf:!1,contextLimits:I(512000,64000),disabledForPilots:!1,cost:{tokenMultiplier:0.12,outputTokenMultiplier:4},usesUSBasedInference:!0},",
+      "byteOffset": 154320120,
+      "tokenMultiplier": 0.12
+    },
+    {
+      "id": "glm-5.3",
+      "name": "GLM-5.3",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": false,
+      "supportedReasoningEfforts": [
+        "low",
+        "high",
+        "max"
+      ],
+      "defaultReasoningEffort": "max",
+      "apiProviders": [
+        "fireworks",
+        "baseten",
+        "mistral",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "global": [
+          "fireworks",
+          "baseten",
+          "databricks"
+        ],
+        "eu": [
+          "mistral"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1040000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 908928,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(1040000,131072)",
+      "registrySource": "\"glm-5.3\":{id:\"glm-5.3\",name:\"GLM-5.3\",shortName:\"GLM-5.3\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\",\"baseten\",\"mistral\",\"databricks\"],routingConfig:m.GLM_5_3,apiProviderConfig:{fireworks:{...K,modelId:\"accounts/fireworks/models/glm-5p3\"},baseten:{...Ne,modelId:\"zai-org/GLM-5.3\"},mistral:{...K,modelId:\"zai-glm-5-3\"},databricks:{...At,modelId:\"databricks-glm-5-3\"}},reasoningEffort:{supported:[\"low\",\"high\",\"max\"],default:\"max\"},chatCompletionRequest:w(),tier:\"standard\",billingPool:\"core\",images:!1,pdf:!1,systemPromptReminders:[\"parallel-tool-calls\"],contextLimits:I(1040000,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.56,outputTokenMultiplier:3.15},usesUSBasedInference:!0,matchPatterns:[/glm-5p3/i],regionOverrides:{global:{apiProviders:[\"fireworks\",\"baseten\",\"databricks\"]},eu:{apiProviders:[\"mistral\"]}},newUntil:new Date(\"2026-09-05T00:00:00Z\")},",
+      "byteOffset": 154325076,
+      "tokenMultiplier": 0.56
+    },
+    {
+      "id": "glm-5.3-flash",
+      "name": "GLM-5.3-Flash",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "high",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "fireworks",
+        "baseten",
+        "databricks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1048576,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 917504,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(1048576,131072)",
+      "registrySource": "\"glm-5.3-flash\":{id:\"glm-5.3-flash\",name:\"GLM-5.3-Flash\",shortName:\"GLM-5.3-Flash\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\",\"baseten\",\"databricks\"],routingConfig:m.GLM_5_3_FLASH,apiProviderConfig:{fireworks:{...K,modelId:\"accounts/fireworks/models/glm-5p3-flash\"},baseten:{...Ne,modelId:\"zai-org/GLM-5.3-Flash\"},databricks:{...At,modelId:\"databricks-glm-5-3-flash\"}},reasoningEffort:{supported:[\"low\",\"high\",\"max\"],default:\"high\"},chatCompletionRequest:w(),tier:\"standard\",billingPool:\"core\",images:!0,pdf:!1,contextLimits:I(1048576,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.06,cacheReadTokenMultiplier:0.2,outputTokenMultiplier:3.34},usesUSBasedInference:!0,matchPatterns:[/glm-5p3-flash/i],newUntil:new Date(\"2026-08-31T00:00:00Z\")},",
+      "byteOffset": 154325989,
+      "tokenMultiplier": 0.06
+    },
+    {
+      "id": "inkling",
+      "name": "Inkling",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "fireworks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1040000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 1007232,
+        "maxOutputTokens": 32768,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(1040000,32768)",
+      "registrySource": "inkling:{id:\"inkling\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Inkling\",shortName:\"Inkling\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\"],routingConfig:m.INKLING,apiProviderConfig:{fireworks:{...Gi,modelId:\"accounts/fireworks/models/inkling\"}},reasoningEffort:{supported:[\"off\",\"minimal\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},chatCompletionRequest:tt(),tier:\"standard\",billingPool:\"core\",images:!0,pdf:!1,contextLimits:I(1040000,32768),disabledForPilots:!1,cost:{tokenMultiplier:0.4,cacheReadTokenMultiplier:0.17,outputTokenMultiplier:4.05},usesUSBasedInference:!0,matchPatterns:[/inkling/i]},",
+      "byteOffset": 154326786,
+      "tokenMultiplier": 0.4
+    },
+    {
+      "id": "nemotron-3-ultra",
+      "name": "Nemotron 3 Ultra",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": false,
+      "supportedReasoningEfforts": [
+        "off",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "baseten",
+        "fireworks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 202000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 136464,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 136464
+      },
+      "expression": "I(202000,65536)",
+      "registrySource": "\"nemotron-3-ultra\":{id:\"nemotron-3-ultra\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Nemotron 3 Ultra\",shortName:\"Nemotron 3 Ultra\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"baseten\",\"fireworks\"],routingConfig:m.NEMOTRON_3_ULTRA,apiProviderConfig:{fireworks:{...K,modelId:\"accounts/fireworks/models/nemotron-3-ultra-nvfp4\"},baseten:{...ce,modelId:\"nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B\"}},reasoningEffort:{supported:[\"off\",\"high\"],default:\"high\"},chatCompletionRequest:w(),tier:\"standard\",billingPool:\"core\",images:!1,pdf:!1,contextLimits:I(202000,65536),disabledForPilots:!1,cost:{tokenMultiplier:0.24,outputTokenMultiplier:4},usesUSBasedInference:!0},",
+      "byteOffset": 154327448,
+      "tokenMultiplier": 0.24
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "name": "GPT-6.1 Sol",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai",
+        "bedrock_openai",
+        "databricks"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "openai"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-6.1-sol\":{id:\"gpt-6.1-sol\",name:\"GPT-6.1 Sol\",shortName:\"GPT-6.1 Sol\",provider:\"openai\",apiProviders:[\"openai\",\"bedrock_openai\",\"databricks\"],apiProviderConfig:{bedrock_openai:{modelId:\"openai.gpt-6.1-sol\"},databricks:{modelId:\"databricks-gpt-6-1-sol\"}},routingConfig:m.GPT61_SOL,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"premium\",featureFlag:J.Gpt61Sol,pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,regionOverrides:{eu:{apiProviders:[\"openai\"]}},contextLimits:P,apiRequest:D,disabledForPilots:!1,cost:{tokenMultiplier:0.8,cacheReadTokenMultiplier:0.05,outputTokenMultiplier:5},matchPatterns:[/gpt[^a-z0-9]*6[.-]?1[^a-z0-9]*sol/i],newUntil:new Date(\"2026-10-05T00:00:00Z\")},",
+      "byteOffset": 154300938,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "claude-haiku-5-5",
+      "name": "Haiku 5.5",
+      "route": "anthropic",
+      "provider": "factory-a",
+      "family": "anthropic",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "anthropic",
+        "vertex_anthropic",
+        "bedrock_anthropic",
+        "azure_anthropic"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1000000,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 872000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "Ee",
+      "registrySource": "\"claude-haiku-5-5\":{id:\"claude-haiku-5-5\",name:\"Haiku 5.5\",shortName:\"Haiku 5.5\",provider:\"anthropic\",apiProviders:Y,apiProviderConfig:{anthropic:{modelId:\"claude-haiku-5-5\"},vertex_anthropic:{modelId:\"claude-haiku-5-5\"},bedrock_anthropic:{modelId:\"anthropic.claude-haiku-5-5\"},azure_anthropic:{modelId:\"claude-haiku-5-5\"}},routingConfig:m.HAIKU_5_5,featureFlag:J.ClaudeHaiku55,reasoningEffort:{supported:[\"off\",\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"medium\"},tier:\"standard\",pdf:!0,contextLimits:Ee,thinking:(o)=>U(o,!0),compactThroughLatestSignedThinking:!0,supportsMidConversationToolChanges:!0,supportsMidConversationEffortChanges:!0,disabledForPilots:!1,cost:{tokenMultiplier:0.04,outputTokenMultiplier:5},matchPatterns:[/haiku[^a-z0-9]*5[.-]?5/i,/claude-haiku-5-5/i],newUntil:new Date(\"2026-10-12T00:00:00Z\")},",
+      "byteOffset": 154281523,
+      "tokenMultiplier": 0.04
+    },
+    {
+      "id": "mistral-large-4",
+      "name": "Mistral Large 4",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "mistral"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "mistral"
+        ],
+        "us": []
+      },
+      "limits": {
+        "contextWindow": 588288,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 524288,
+        "maxOutputTokens": 64000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "O({maxInputTokens:524288,maxOutputTokens:64000})",
+      "registrySource": "\"mistral-large-4\":{id:\"mistral-large-4\",name:\"Mistral Large 4\",shortName:\"Mistral Large 4\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"mistral\"],apiProviderConfig:{mistral:{...Tt,modelId:\"mistral-large-4\"}},reasoningEffort:{supported:[\"off\",\"high\"],default:\"high\"},chatCompletionRequest:We(),tier:\"standard\",billingPool:\"core\",featureFlag:J.MistralLarge4,images:!0,pdf:!1,contextLimits:O({maxInputTokens:524288,maxOutputTokens:64000}),disabledForPilots:!1,cost:{tokenMultiplier:0.544,cacheReadTokenMultiplier:0.103,outputTokenMultiplier:3.08,promotions:[{discount:0.5,startsAt:new Date(\"2026-10-06T00:00:00Z\"),expiresAt:new Date(\"2026-10-20T00:00:00Z\"),label:\"50% off, launch discount\"}]},usesUSBasedInference:!1,regionOverrides:{eu:{apiProviders:[\"mistral\"]},us:h},matchPatterns:[/mistral[^a-z0-9]*large[^a-z0-9]*4(?![.\\d])/i],newUntil:new Date(\"2026-10-11T00:00:00Z\")},",
+      "byteOffset": 154320811,
+      "tokenMultiplier": 0.544
+    },
+    {
+      "id": "mistral-medium-3.5",
+      "name": "Mistral Medium 3.5",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "mistral"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "mistral"
+        ]
+      },
+      "limits": {
+        "contextWindow": 256000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 192000,
+        "maxOutputTokens": 64000,
+        "defaultCompactionLimit": 192000
+      },
+      "expression": "I(256000,64000)",
+      "registrySource": "\"mistral-medium-3.5\":{id:\"mistral-medium-3.5\",name:\"Mistral Medium 3.5\",shortName:\"Mistral Medium 3.5\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"mistral\"],apiProviderConfig:{mistral:{...Tt,modelId:\"mistral-medium-3-5\"}},reasoningEffort:{supported:[\"off\",\"high\"],default:\"high\"},chatCompletionRequest:We(),tier:\"standard\",billingPool:\"core\",images:!0,pdf:!1,contextLimits:I(256000,64000),disabledForPilots:!1,cost:{tokenMultiplier:0.6,outputTokenMultiplier:5},usesUSBasedInference:!0,matchPatterns:[/mistral[^a-z0-9]*medium[^a-z0-9]*3[.-]?5/i],regionOverrides:{eu:{apiProviders:[\"mistral\"]}},newUntil:new Date(\"2026-09-22T00:00:00Z\")},",
+      "byteOffset": 154321719,
+      "tokenMultiplier": 0.6
+    },
+    {
+      "id": "glm-5.2",
+      "name": "GLM-5.2",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": false,
+      "supportedReasoningEfforts": [
+        "off",
+        "high",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "baseten",
+        "mistral"
+      ],
+      "regionOverrides": {
+        "global": [
+          "baseten"
+        ],
+        "eu": [
+          "mistral"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1040000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 908928,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(1040000,131072)",
+      "registrySource": "\"glm-5.2\":{id:\"glm-5.2\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GLM-5.2\",shortName:\"GLM-5.2\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"baseten\",\"mistral\"],routingConfig:m.GLM_5_2,apiProviderConfig:{baseten:{...Ne,modelId:\"zai-org/GLM-5.2\"},mistral:{...K,modelId:\"zai-glm-5-2\"},together:{...Di,modelId:\"zai-org/GLM-5.2\"}},reasoningEffort:{supported:[\"off\",\"high\",\"max\"],default:\"high\"},chatCompletionRequest:w(),tier:\"standard\",billingPool:\"core\",images:!1,pdf:!1,contextLimits:I(1040000,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.56,outputTokenMultiplier:3.15},usesUSBasedInference:!0,regionOverrides:{global:{apiProviders:[\"baseten\"]},eu:{apiProviders:[\"mistral\"],contextLimits:O({maxInputTokens:200000,maxOutputTokens:65536})}}},",
+      "byteOffset": 154323591,
+      "tokenMultiplier": 0.56,
+      "regionLimits": {
+        "eu": {
+          "contextWindow": 265536,
+          "capacityKind": "cli-budget-envelope",
+          "maxInputTokens": 200000,
+          "maxOutputTokens": 65536,
+          "defaultCompactionLimit": 200000
+        }
+      }
+    },
+    {
+      "id": "glm-5.2-fast",
+      "name": "GLM-5.2 Fast",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": false,
+      "supportedReasoningEfforts": [
+        "off",
+        "high",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "baseten"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 524288,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 393216,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(524288,131072)",
+      "registrySource": "\"glm-5.2-fast\":{id:\"glm-5.2-fast\",name:\"GLM-5.2 Fast\",shortName:\"GLM-5.2 Fast\",baseVariant:\"glm-5.2\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"baseten\"],apiProviderConfig:{baseten:{...Ne,modelId:\"zai-org/GLM-5.2-Fast\"}},routingConfig:m.GLM_5_2_FAST,reasoningEffort:{supported:[\"off\",\"high\",\"max\"],default:\"high\"},chatCompletionRequest:w(),tier:\"standard\",billingPool:\"core\",featureFlag:J.Glm52Fast,images:!1,pdf:!1,contextLimits:I(524288,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.84,outputTokenMultiplier:3.2},usesUSBasedInference:!0,newUntil:new Date(\"2026-07-07T00:00:00Z\"),matchPatterns:[/glm[^a-z0-9]*5[.-]?2[^a-z0-9]*fast/i,/glm-5p2-fast/i]},",
+      "byteOffset": 154324379,
+      "tokenMultiplier": 0.84
+    },
+    {
+      "id": "gpt-5.5-pro",
+      "name": "GPT-5.5 Pro",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1050000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 922000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "P",
+      "registrySource": "\"gpt-5.5-pro\":{id:\"gpt-5.5-pro\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.5 Pro\",shortName:\"GPT-5.5 Pro\",provider:\"openai\",apiProviders:[\"openai\"],reasoningEffort:{supported:[\"medium\",\"high\",\"xhigh\"],default:\"medium\"},tier:\"premium\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,supportsMidConversationToolChanges:!0,contextLimits:P,apiRequest:D,disabledForPilots:!0,cost:{tokenMultiplier:12,outputTokenMultiplier:6,promotions:[M]},matchPatterns:[/gpt[^a-z0-9]*5[.-]?5[^a-z0-9]*pro/i]},",
+      "byteOffset": 154293547,
+      "tokenMultiplier": 12.0
+    },
+    {
+      "id": "gpt-5.3-codex-fast",
+      "name": "GPT-5.3-Codex Fast Mode",
+      "route": "openai",
+      "provider": "factory-o",
+      "family": "openai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "openai"
+      ],
+      "regionOverrides": {
+        "us": []
+      },
+      "limits": {
+        "contextWindow": 400000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 272000,
+        "maxOutputTokens": 128000,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "le",
+      "registrySource": "\"gpt-5.3-codex-fast\":{id:\"gpt-5.3-codex-fast\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"GPT-5.3-Codex Fast Mode\",shortName:\"GPT-5.3-Codex Fast\",baseVariant:\"gpt-5.3-codex\",provider:\"openai\",apiProviders:[\"openai\"],reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"medium\"},tier:\"standard\",pdf:!0,compatibilityGroup:\"gpt5-family\",supportsVerbosity:!0,contextLimits:le,apiRequest:Ie,disabledForPilots:!1,cost:{tokenMultiplier:1.4,outputTokenMultiplier:8,promotions:[M]},regionOverrides:{us:h},matchPatterns:[/gpt[^a-z0-9]*5[.-]?3[^a-z0-9]*codex[^a-z0-9]*fast/i,/codex[^a-z0-9]*gpt[^a-z0-9]*5[.-]?3[^a-z0-9]*fast/i]},",
+      "byteOffset": 154288908,
+      "tokenMultiplier": 1.4
+    },
+    {
+      "id": "gemini-3.1-pro-preview",
+      "name": "Gemini 3.1 Pro",
+      "route": "google",
+      "provider": "factory-google",
+      "family": "google",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "google"
+      ],
+      "regionOverrides": {
+        "us": []
+      },
+      "limits": {
+        "contextWindow": 1065536,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 1000000,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "k(1e6,65536)",
+      "registrySource": "\"gemini-3.1-pro-preview\":{id:\"gemini-3.1-pro-preview\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Gemini 3.1 Pro\",shortName:\"Gemini 3.1 Pro\",provider:\"google\",systemPromptReminders:b,apiProviders:[\"google\"],reasoningEffort:{supported:[\"low\",\"medium\",\"high\"],default:\"high\"},tier:\"standard\",pdf:!0,contextLimits:k(1e6,65536),thinking:N(),apiRequest:v({supportsMedium:!0}),disabledForPilots:!1,cost:{tokenMultiplier:0.8},regionOverrides:{us:h},matchPatterns:[/gemini[^a-z0-9]*3\\.?1[^a-z0-9]*pro/i]},",
+      "byteOffset": 154305868,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "name": "Gemini 3.8 Flash",
+      "route": "google",
+      "provider": "factory-google",
+      "family": "google",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "google"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1065536,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 1000000,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "k(1e6,65536)",
+      "registrySource": "\"gemini-3.8-flash\":{id:\"gemini-3.8-flash\",name:\"Gemini 3.8 Flash\",shortName:\"Gemini 3.8 Flash\",provider:\"google\",systemPromptReminders:b,apiProviders:[\"google\"],regionOverrides:{eu:{apiProviders:[\"google\"]}},reasoningEffort:{supported:[\"low\",\"medium\",\"high\"],default:\"high\"},tier:\"standard\",pdf:!0,contextLimits:k(1e6,65536),thinking:N(),apiRequest:v({supportsMedium:!0}),disabledForPilots:!1,cost:{tokenMultiplier:0.6,outputTokenMultiplier:5,promotions:[Mt]},matchPatterns:[/gemini[^a-z0-9]*3[.-]?8[^a-z0-9]*flash/i],newUntil:new Date(\"2026-09-07T00:00:00Z\")},",
+      "byteOffset": 154308456,
+      "tokenMultiplier": 0.6
+    },
+    {
+      "id": "gemini-3.7-flash",
+      "name": "Gemini 3.7 Flash",
+      "route": "google",
+      "provider": "factory-google",
+      "family": "google",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "google"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1065536,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 1000000,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "k(1e6,65536)",
+      "registrySource": "\"gemini-3.7-flash\":{id:\"gemini-3.7-flash\",name:\"Gemini 3.7 Flash\",shortName:\"Gemini 3.7 Flash\",provider:\"google\",systemPromptReminders:b,apiProviders:[\"google\"],regionOverrides:{eu:{apiProviders:[\"google\"]}},reasoningEffort:{supported:[\"low\",\"medium\",\"high\"],default:\"high\"},tier:\"standard\",pdf:!0,contextLimits:k(1e6,65536),thinking:N(),apiRequest:v({supportsMedium:!0}),disabledForPilots:!1,cost:{tokenMultiplier:0.6,outputTokenMultiplier:5,promotions:[Mt]},matchPatterns:[/gemini[^a-z0-9]*3[.-]?7[^a-z0-9]*flash/i],newUntil:new Date(\"2026-08-18T00:00:00Z\")},",
+      "byteOffset": 154307895,
+      "tokenMultiplier": 0.6
+    },
+    {
+      "id": "gemini-3.6-flash",
+      "name": "Gemini 3.6 Flash",
+      "route": "google",
+      "provider": "factory-google",
+      "family": "google",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "google"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1065536,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 1000000,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "k(1e6,65536)",
+      "registrySource": "\"gemini-3.6-flash\":{id:\"gemini-3.6-flash\",name:\"Gemini 3.6 Flash\",shortName:\"Gemini 3.6 Flash\",provider:\"google\",systemPromptReminders:b,apiProviders:[\"google\"],regionOverrides:{eu:{apiProviders:[\"google\"]}},reasoningEffort:{supported:[\"low\",\"medium\",\"high\"],default:\"high\"},tier:\"standard\",pdf:!0,contextLimits:k(1e6,65536),thinking:N(),apiRequest:v(),disabledForPilots:!1,cost:{tokenMultiplier:0.6,outputTokenMultiplier:5},matchPatterns:[/gemini[^a-z0-9]*3[.-]?6[^a-z0-9]*flash/i],newUntil:new Date(\"2026-07-29T00:00:00Z\")},",
+      "byteOffset": 154307369,
+      "tokenMultiplier": 0.6
+    },
+    {
+      "id": "gemini-3.5-flash",
+      "name": "Gemini 3.5 Flash",
+      "route": "google",
+      "provider": "factory-google",
+      "family": "google",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "minimal",
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": [
+          "google"
+        ]
+      },
+      "limits": {
+        "contextWindow": 1065536,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 1000000,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "k(1e6,65536)",
+      "registrySource": "\"gemini-3.5-flash\":{id:\"gemini-3.5-flash\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Gemini 3.5 Flash\",shortName:\"Gemini 3.5 Flash\",provider:\"google\",systemPromptReminders:b,apiProviders:[\"google\"],regionOverrides:{eu:{apiProviders:[\"google\"]}},reasoningEffort:{supported:[\"minimal\",\"low\",\"medium\",\"high\"],default:\"high\"},tier:\"standard\",pdf:!0,contextLimits:k(1e6,65536),thinking:N(),apiRequest:v(),disabledForPilots:!1,cost:{tokenMultiplier:0.6},matchPatterns:[/gemini[^a-z0-9]*3\\.?5[^a-z0-9]*flash/i]},",
+      "byteOffset": 154306859,
+      "tokenMultiplier": 0.6
+    },
+    {
+      "id": "gemini-3-flash-preview",
+      "name": "Gemini 3 Flash",
+      "route": "google",
+      "provider": "factory-google",
+      "family": "google",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "minimal",
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "google"
+      ],
+      "regionOverrides": {
+        "us": []
+      },
+      "limits": {
+        "contextWindow": 1065536,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 1000000,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "k(1e6,65536)",
+      "registrySource": "\"gemini-3-flash-preview\":{id:\"gemini-3-flash-preview\",newUntil:new Date(\"2000-01-01T00:00:00Z\"),name:\"Gemini 3 Flash\",shortName:\"Gemini 3 Flash\",provider:\"google\",systemPromptReminders:b,apiProviders:[\"google\"],reasoningEffort:{supported:[\"minimal\",\"low\",\"medium\",\"high\"],default:\"high\"},tier:\"standard\",pdf:!0,contextLimits:k(1e6,65536),thinking:N(),apiRequest:v(),disabledForPilots:!1,cost:{tokenMultiplier:0.2},regionOverrides:{us:h},matchPatterns:[/gemini[^a-z0-9]*3[^a-z0-9]*flash/i]},",
+      "byteOffset": 154306369,
+      "tokenMultiplier": 0.2
+    },
+    {
+      "id": "grok-4.5",
+      "name": "Grok 4.5",
+      "route": "xai",
+      "provider": "factory-xai",
+      "family": "xai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "xai"
+      ],
+      "regionOverrides": {
+        "us": []
+      },
+      "limits": {
+        "contextWindow": 263356,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 200000,
+        "maxOutputTokens": 63356,
+        "defaultCompactionLimit": 200000
+      },
+      "expression": "O({maxInputTokens:200000,maxOutputTokens:63356})",
+      "registrySource": "\"grok-4.5\":{id:\"grok-4.5\",name:\"Grok 4.5\",shortName:\"Grok 4.5\",provider:\"xai\",apiProviders:[\"xai\"],reasoningEffort:{supported:[\"low\",\"medium\",\"high\"],default:\"high\"},tier:\"premium\",images:!0,pdf:!1,contextLimits:O({maxInputTokens:200000,maxOutputTokens:63356}),disabledForPilots:!1,cost:{tokenMultiplier:0.8,cacheReadTokenMultiplier:0.15,outputTokenMultiplier:3,promotions:[M]},regionOverrides:{us:h},newUntil:new Date(\"2026-07-13T00:00:00Z\")},",
+      "byteOffset": 154310204,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "grok-4.6",
+      "name": "Grok 4.6",
+      "route": "xai",
+      "provider": "factory-xai",
+      "family": "xai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "xai"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 263356,
+        "capacityKind": "cli-budget-envelope",
+        "maxInputTokens": 200000,
+        "maxOutputTokens": 63356,
+        "defaultCompactionLimit": 200000
+      },
+      "expression": "O({maxInputTokens:200000,maxOutputTokens:63356})",
+      "registrySource": "\"grok-4.6\":{id:\"grok-4.6\",name:\"Grok 4.6\",shortName:\"Grok 4.6\",provider:\"xai\",apiProviders:[\"xai\"],routingConfig:m.GROK_4_6,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"high\"},tier:\"premium\",images:!0,pdf:!1,contextLimits:O({maxInputTokens:200000,maxOutputTokens:63356}),disabledForPilots:!1,cost:{tokenMultiplier:0.8,cacheReadTokenMultiplier:0.25,outputTokenMultiplier:3,promotions:[M]},newUntil:new Date(\"2026-08-17T00:00:00Z\")},",
+      "byteOffset": 154310648,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "grok-4.7",
+      "name": "Grok 4.7",
+      "route": "xai",
+      "provider": "factory-xai",
+      "family": "xai",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "xai"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 500000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 436644,
+        "maxOutputTokens": 63356,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(500000,63356)",
+      "registrySource": "\"grok-4.7\":{id:\"grok-4.7\",name:\"Grok 4.7\",shortName:\"Grok 4.7\",provider:\"xai\",apiProviders:[\"xai\"],routingConfig:m.GROK_4_7,reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"high\"},tier:\"premium\",images:!0,pdf:!1,contextLimits:I(500000,63356),disabledForPilots:!1,cost:{tokenMultiplier:0.8,cacheReadTokenMultiplier:0.25,outputTokenMultiplier:3},newUntil:new Date(\"2026-09-26T00:00:00Z\")},",
+      "byteOffset": 154311102,
+      "tokenMultiplier": 0.8
+    },
+    {
+      "id": "gemini-4-argon",
+      "name": "Gemini 4 Argon",
+      "route": "google",
+      "provider": "factory-google",
+      "family": "google",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "defaultReasoningEffort": "medium",
+      "apiProviders": [
+        "google"
+      ],
+      "regionOverrides": {
+        "us": []
+      },
+      "limits": {
+        "contextWindow": 1000000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 934464,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(1e6,65536)",
+      "registrySource": "\"gemini-4-argon\":{id:\"gemini-4-argon\",name:\"Gemini 4 Argon\",shortName:\"Gemini 4 Argon\",provider:\"google\",systemPromptReminders:b,apiProviders:[\"google\"],regionOverrides:{us:h},reasoningEffort:{supported:[\"low\",\"medium\",\"high\"],default:\"medium\"},tier:\"standard\",featureFlag:J.Gemini4Argon,unreleased:!0,images:!0,pdf:!0,contextLimits:I(1e6,65536),thinking:N(),apiRequest:v({supportsMedium:!0,omitSamplingParameters:!0,maxOutputTokens:65536,preserveNativeContent:!0}),disabledForPilots:!1,cost:{tokenMultiplier:1.6,outputTokenMultiplier:5,cacheReadTokenMultiplier:0.05,promotions:[{discount:0.5,startsAt:new Date(\"2026-10-13T16:00:00Z\"),expiresAt:new Date(\"2026-12-01T08:00:00Z\"),label:\"50% off\"}]},newUntil:new Date(\"2026-10-18T16:00:00Z\")}",
+      "byteOffset": 154309017,
+      "tokenMultiplier": 1.6,
+      "featureFlag": "gemini_4_argon",
+      "preserveNativeContent": true,
+      "omitSamplingParameters": true
+    }
+  ]
+}
