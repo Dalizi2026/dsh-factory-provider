@@ -1,0 +1,108 @@
+{
+  "version": "0.243.0",
+  "checkedDate": "2026-10-16",
+  "source": "https://registry.npmjs.org/@factory/cli-darwin-arm64/-/cli-darwin-arm64-0.243.0.tgz",
+  "binarySHA256": "4fb1c1a87021e44d08e9d3e743eb196586aa7451caec31072c043bf976358dcc",
+  "integrityVerified": true,
+  "models": [
+    {
+      "id": "nemotron-3.5-super",
+      "name": "Nemotron 3.5 Super",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "high"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "baseten"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1000000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 934464,
+        "maxOutputTokens": 65536,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(1e6,65536)",
+      "registrySource": "\"nemotron-3.5-super\":{id:\"nemotron-3.5-super\",newUntil:new Date(\"2026-10-20T00:00:00Z\"),name:\"Nemotron 3.5 Super\",shortName:\"Nemotron 3.5 Super\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"baseten\"],apiProviderConfig:{baseten:Pe},featureFlag:M.Nemotron35Super,unreleased:!0,inferCustomModelCapabilities:!1,reasoningEffort:{supported:[\"off\",\"high\"],default:\"high\"},chatCompletionRequest:y(),tier:\"standard\",billingPool:\"core\",images:!0,pdf:!1,contextLimits:I(1e6,65536),disabledForPilots:!1,cost:{tokenMultiplier:0.08,cacheReadTokenMultiplier:0.2,outputTokenMultiplier:2.5},usesUSBasedInference:!0},",
+      "byteOffset": 155507548,
+      "tokenMultiplier": 0.08,
+      "featureFlag": "nemotron_3_5_super"
+    },
+    {
+      "id": "muse-spark-open",
+      "name": "Muse Spark Open",
+      "route": "standard",
+      "provider": "factory-s",
+      "family": "factory",
+      "billingPool": "standard",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "baseten"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1040000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 908928,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(1040000,131072)",
+      "registrySource": "\"muse-spark-open\":{id:\"muse-spark-open\",name:\"Muse Spark Open\",shortName:\"Muse Spark Open\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"baseten\"],apiProviderConfig:{baseten:{modelId:\"meta-models/muse-spark-open\",chatCompletions:{thinkingMode:\"reasoning-effort\",buildRequestParams:ce({emitNone:!0})}}},reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},chatCompletionRequest:y(),tier:\"standard\",featureFlag:M.MuseSparkOpen,newUntil:new Date(\"2026-10-20T00:00:00Z\"),images:!0,pdf:!1,contextLimits:I(1040000,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.5,cacheReadTokenMultiplier:0.12,outputTokenMultiplier:3.4},usesUSBasedInference:!0},",
+      "byteOffset": 155508883,
+      "tokenMultiplier": 0.5,
+      "featureFlag": "muse_spark_open"
+    },
+    {
+      "id": "muse-spark-1.2",
+      "name": "Muse Spark 1.2",
+      "route": "standard",
+      "provider": "factory-s",
+      "family": "factory",
+      "billingPool": "standard",
+      "images": false,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "high",
+      "apiProviders": [
+        "fireworks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1040000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 908928,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "expression": "I(1040000,131072)",
+      "registrySource": "\"muse-spark-1.2\":{id:\"muse-spark-1.2\",name:\"Muse Spark 1.2\",shortName:\"Muse Spark 1.2\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\"],apiProviderConfig:{fireworks:{...B,modelId:\"accounts/fireworks/models/muse-spark-1p2-open\"}},reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"high\"},chatCompletionRequest:y(),tier:\"standard\",featureFlag:M.MuseSpark12,newUntil:new Date(\"2026-10-18T00:00:00Z\"),images:!1,pdf:!1,contextLimits:I(1040000,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.5,cacheReadTokenMultiplier:0.12,outputTokenMultiplier:3.4}},",
+      "byteOffset": 155509591,
+      "tokenMultiplier": 0.5,
+      "featureFlag": "muse_spark_1_2"
+    }
+  ],
+  "budgetHelpers": {
+    "I": "function I(o,t){return C({maxInputTokens:o-t,maxOutputTokens:t}",
+    "C": "function C(o){let t={...o,defaultCompactionLimit:\"defaultCompactionLimit\"in o?o.defaultCompactionLimit:Math.min(o.maxInputTokens,250000)};return()=>t}"
+  }
+}

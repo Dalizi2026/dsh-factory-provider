@@ -1,8 +1,8 @@
 {
   "source": {
-    "cliVersion": "0.241.0",
-    "routingSnapshotDate": "2026-10-14",
-    "routingSnapshot": "Existing successful orders preserved; additions from official CLI and cached routing flags; refreshed per API key at runtime"
+    "cliVersion": "0.243.0",
+    "routingSnapshotDate": "2026-10-16",
+    "routingSnapshot": "Existing audited orders preserved; additions from official CLI 0.243.0; refreshed per API key at runtime"
   },
   "providerRegions": {
     "anthropic": [
@@ -303,6 +303,15 @@
       ],
       "grok-4.5": [
         "xai"
+      ],
+      "nemotron-3.5-super": [
+        "baseten"
+      ],
+      "muse-spark-open": [
+        "baseten"
+      ],
+      "muse-spark-1.2": [
+        "fireworks"
       ]
     },
     "blockedProviders": {}
@@ -909,6 +918,30 @@
       "regionOverrides": {
         "us": []
       }
+    },
+    "nemotron-3.5-super": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "baseten"
+      ],
+      "regionOverrides": {}
+    },
+    "muse-spark-open": {
+      "family": "factory",
+      "route": "standard",
+      "providers": [
+        "baseten"
+      ],
+      "regionOverrides": {}
+    },
+    "muse-spark-1.2": {
+      "family": "factory",
+      "route": "standard",
+      "providers": [
+        "fireworks"
+      ],
+      "regionOverrides": {}
     }
   }
 }

@@ -49,7 +49,7 @@ test('multi-image preparation: long text triggers history recovery; abort stops 
 async function nativeFixture({config={},storeImpl=store(),sdkEvents,reasoning=false}={}){
  const [{Context},{PiAiAdapter}]=await Promise.all([host('cordis'),host('dsh-llm-pi-ai')]);
  const ctx=new Context(),seen=[],headers=[],sdkOptions=[],profiles=new Map();let settings=config;
- for(const provider of ['factory-a','factory-g','factory-o','factory-google','factory-xai','unrelated'])profiles.set(provider,{...profile,modelErrors:new Map(),configuredMaxTokens:new Map(),streamIdleTimeoutMs:60000});
+ for(const provider of ['factory-a','factory-g','factory-o','factory-google','factory-xai','factory-s','unrelated'])profiles.set(provider,{...profile,modelErrors:new Map(),configuredMaxTokens:new Map(),streamIdleTimeoutMs:60000});
  const server=http.createServer(async(req,res)=>{
   let raw='';for await(const chunk of req)raw+=chunk;
   const body=JSON.parse(raw);
@@ -98,7 +98,7 @@ test('real native adapter: summary metadata is scoped to text/image compaction, 
   assert.equal(f.profiles.get('factory-a').headers['x-dsh-factory-session'],undefined);
  }finally{f.dispose();}
 });
-for(const [provider,model]of [['factory-a','claude-sonnet-5-5'],['factory-a','claude-opus-5-5'],['factory-g','glm-5.3-flash'],['factory-o','gpt-6-sol'],['factory-google','gemini-3.8-flash'],['factory-xai','grok-4.7']])test(`real native PiAiAdapter: ${provider}/${model} sends all 20 fresh images with smaller prepared versions`,{skip},async()=>{
+for(const [provider,model]of [['factory-a','claude-sonnet-5-5'],['factory-a','claude-opus-5-5'],['factory-g','glm-5.3-flash'],['factory-o','gpt-6-sol'],['factory-google','gemini-3.8-flash'],['factory-xai','grok-4.7'],['factory-g','nemotron-3.5-super'],['factory-s','muse-spark-open']])test(`real native PiAiAdapter: ${provider}/${model} sends all 20 fresh images with smaller prepared versions`,{skip},async()=>{
  const f=await nativeFixture();try{
   const request={...options(20),provider,model};const original=JSON.stringify(request);const call=await f.adapter.prepareCall(provider,model);const chunks=await consume(call.stream(request));
   assert.equal(chunks.at(-1).reason.kind,'stop');assert.equal(f.seen.length,1);const images=f.seen[0].messages.flatMap(m=>Array.isArray(m.content)?m.content:[]).filter(b=>b.type==='image');assert.equal(images.length,20);

@@ -18,7 +18,9 @@ import { resolveModelCompactionPolicy } from '../lib/compaction-policy.js';
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'factory-model-refresh-'));
 process.env.DSH_FACTORY_JOURNAL = path.join(temp, 'journal.jsonl');
 test.after(() => fs.rmSync(temp, { recursive: true, force: true }));
-const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.241.0-models.json', import.meta.url)));
+const baseline = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.241.0-models.json', import.meta.url)));
+const refresh = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.243.0-model-additions.json', import.meta.url)));
+const evidence = { ...refresh, models: [...baseline.models, ...refresh.models] };
 
 test('refresh: all models retain CLI defaults, pool and modalities; new families have separate profiles', () => {
   for (const [route, spec] of Object.entries(ROUTES)) for (const model of spec.models) {
@@ -125,11 +127,12 @@ async function gatewayFixture(t) {
   return {seen,gateway,base:`http://127.0.0.1:${server.address().port}/fixture`};
 }
 
-test('refresh: all five protocols/groups reach the right Factory path, tool/image body, provider and usage', async t => {
+test('refresh: all configured protocols/groups reach the right Factory path, tool/image body, provider and usage', async t => {
   const fixture=await gatewayFixture(t);
   for(const [route,model,provider,suffix] of [
     ['anthropic','claude-haiku-5-5','anthropic','/api/llm/a/v1/messages'],
     ['generic','mistral-large-4','mistral','/api/llm/o/v1/chat/completions'],
+    ['standard','muse-spark-open','baseten','/api/llm/o/v1/chat/completions'],
     ['openai','gpt-5.5-pro','openai','/api/llm/o/v1/responses'],
     ['google','gemini-4-argon','google','/api/llm/g/v1/generate'],
     ['xai','grok-4.7','xai','/api/llm/o/v1/responses'],

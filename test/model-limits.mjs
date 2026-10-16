@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import { FACTORY_MODEL_LIMITS, FACTORY_LIMITS_VERSION, factoryModelLimits, clampFactoryOutputTokens } from '../lib/model-limits.js';
 import { ROUTES, buildModelEntries } from '../lib/catalog.js';
 import { alignedCompactionBudget } from '../lib/context.js';
-const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.241.0-models.json', import.meta.url)));
+const baseline = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.241.0-models.json', import.meta.url)));
+const refresh = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.243.0-model-additions.json', import.meta.url)));
+const evidence = { ...refresh, models: [...baseline.models, ...refresh.models] };
 const additions = evidence;
 const retired = ['deepseek-v4-pro', 'deepseek-v4-flash-0731'];
 const activeEvidence = evidence.models.map(m => ({...m, maxInputTokens:m.limits.maxInputTokens,

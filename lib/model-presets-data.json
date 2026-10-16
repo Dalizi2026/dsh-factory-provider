@@ -755,5 +755,43 @@
         "label": "50% off"
       }
     ]
+  },
+  "nemotron-3.5-super": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "high"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 0.08,
+    "promotions": []
+  },
+  "muse-spark-open": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "standard",
+    "images": true,
+    "tokenMultiplier": 0.5,
+    "promotions": []
+  },
+  "muse-spark-1.2": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": false,
+    "tokenMultiplier": 0.5,
+    "promotions": []
   }
 }
