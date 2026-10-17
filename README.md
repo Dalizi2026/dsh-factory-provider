@@ -2,11 +2,17 @@
 
 把 **Factory（Droid）订阅额度接入 DeepSeek Harness（DSH）**。使用自己的 Factory API key，在 DSH 中选择 Claude、GPT、Gemini、Grok、Muse 和 Core 模型，并查看额度、Token 用量及调整压缩阈值。
 
-**当前版本：1.3.8** · [下载插件](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) · [更新记录](CHANGELOG.md) · [反馈问题](https://github.com/Dalizi2026/dsh-factory-provider/issues)
+**当前版本：1.3.9** · [下载插件](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) · [更新记录](CHANGELOG.md) · [反馈问题](https://github.com/Dalizi2026/dsh-factory-provider/issues)
 
 这是社区插件，与 Factory、DeepSeek 无官方隶属关系。需要已有的 Factory 账号、模型权限和可用额度；不会提供额外额度或绕过账号限制。
 
-## 本版新增
+## 1.3.9：适配 DSH 0.2.1-rc.1
+
+新版 DSH 改为从插件自身的 Config 生成设置，移除了旧的 `installSection` / `register` 接口。本版已接入新版设置服务，保留自定义设置页、已有选择与阈值；保存配置后延后更新模型目录，避开当前设置事务。无效阈值仍会在写入前被拒绝，旧版设置接口分支保留。
+
+在桌面端 0.2.1-rc.1 提取的实际宿主上，**304 项离线测试通过、0 失败、0 跳过**；新增测试使用实际 SettingsForms 与 Cordis，仅将配置文档编辑器放在内存中，覆盖保存、热生效、版本冲突、停用和卸载清理。图片恢复测试同步传入新版必需的取消信号。旧版 0.2.0-rc.2 原有 300 项通过，四项新版专用测试按能力检测跳过。本轮未调用付费模型。
+
+## 模型目录（含 1.3.8 新增）
 
 依据官方 **Droid CLI 0.243.0** 补齐三个模型：
 
@@ -22,12 +28,12 @@
 
 ## 安装
 
-需要 Node.js 20+、可用的 `dsh` 命令和 Factory API key。桌面版目前已验证 **DSH 0.2.0-rc.2 / macOS**；代码包含 Windows / Linux 适配，其他系统及 DSH 版本尚未逐一实机验证。
+需要 Node.js 20+、可用的 `dsh` 命令和 Factory API key。已用 macOS 桌面包的 **DSH 0.2.1-rc.1 / 0.2.0-rc.2** 完成离线宿主集成测试。代码包含 Windows / Linux 适配，其他系统尚未逐一实机验证。
 
 ### 从 Release 安装（推荐）
 
 ```sh
-dsh plugin --profile desktop add https://github.com/Dalizi2026/dsh-factory-provider/releases/download/v1.3.8/dsh-factory-provider-1.3.8.tgz
+dsh plugin --profile desktop add https://github.com/Dalizi2026/dsh-factory-provider/releases/download/v1.3.9/dsh-factory-provider-1.3.9.tgz
 ```
 
 也可以从 [Release](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) 下载 `.tgz`，把命令末尾替换成本地文件路径。`dsh-factory-provider.tgz` 与带版本号的文件内容相同，附带 `SHA256SUMS.txt` 供校验。源码 ZIP 是仓库快照，安装请使用插件 `.tgz`。
@@ -142,7 +148,7 @@ Claude 默认缓存模式为 `auto`：客户端已有缓存标记时保留其管
 
 **缓存命中率低？** 同时看每次请求的缓存读取与新增输入。新会话首次写入、长代码生成、压缩、清理或切换上游都可能降低累计比例。短请求无法验证长前缀缓存，不保证固定命中率。
 
-**界面是新的，但接口 404 / 功能不生效？** 完整退出并重新打开 DSH；前端与网关可能加载了不同批次的代码。诊断状态接口 `/api/dsh-factory-provider/status` 应报告 `version: 1.3.8` 和目录版本 `0.243.0`。
+**界面是新的，但接口 404 / 功能不生效？** 完整退出并重新打开 DSH；前端与网关可能加载了不同批次的代码。诊断状态接口 `/api/dsh-factory-provider/status` 应报告 `version: 1.3.9` 和目录版本 `0.243.0`。
 
 **子代理提示 route is not allowed？** 先让主代理调用 `list_subagent_models`，使用当前会话允许的准确 provider/model。插件的 Factory 路由与其他插件的同名模型不是同一条路由；会话授权也由 DSH 管理。
 
@@ -158,9 +164,9 @@ npm test
 DSH_FACTORY_HOST_ROOT=/path/to/dsh/node_modules npm test
 ```
 
-1.3.8 完整回归为 **300 项通过、0 失败、0 跳过**，包括真实 DSH 适配器配合本地模拟网关的工具回传、缓存统计、会话线路保持，以及多图、压缩、配置生命周期和界面检查。未设置宿主路径时部分测试会跳过。
+1.3.9 在新版 DSH 0.2.1-rc.1 上完整回归为 **304 项通过、0 失败、0 跳过**，包括真实 DSH 适配器配合本地模拟网关的工具回传、缓存统计、会话线路保持，以及多图、压缩、配置生命周期和界面检查。旧版 0.2.0-rc.2 原有 300 项通过，四项新版 SettingsForms 专用测试跳过；未设置宿主路径时其他宿主集成测试也会跳过。
 
-本版三个新模型完成离线验证及本机配置加载检查，**尚未逐一做真实上游调用**。此前 Gemini 4 Argon、Gemini 3.8 Flash 和 Claude 的真实请求结果见 [更新记录](CHANGELOG.md)，不能据此保证所有账号或服务状态都可用。离线测试无需真实 key，不会调用付费模型。
+1.3.8 加入的三个模型已完成离线验证及本机配置加载检查，**尚未逐一做真实上游调用**。此前 Gemini 4 Argon、Gemini 3.8 Flash 和 Claude 的真实请求结果见 [更新记录](CHANGELOG.md)，不能据此保证所有账号或服务状态都可用。离线测试无需真实 key，不会调用付费模型。
 
 模型预算证据保存在 `test/fixtures/`；已有模型以 CLI 0.241.0 审计表为基础，本版新增条目取自 0.243.0。压缩策略单独维护，避免把插件策略误写成官方默认。
 

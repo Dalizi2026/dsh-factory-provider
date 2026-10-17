@@ -66,7 +66,7 @@ test('native image recovery: provider budget offloads only oldest images and ret
   const decisions = [];
   const events = messages.map((message, i) => ({ seq: i + 1, type: 'user/message', data: message }));
   const session = { surface: { nodes: events.map(e => e.seq) }, eventAt: seq => events[seq - 1], deriveEventMessage: event => event.data, append: (type, data) => decisions.push({ type, data }) };
-  const result = await ctx.waterfall('agent/request-error', { agent: { session }, failure: { code: llm.IMAGE_OFFLOAD_REQUIRED_CODE, offloadImages: count } }, () => 'unhandled');
+  const result = await ctx.waterfall('agent/request-error', { agent: { session }, failure: { code: llm.IMAGE_OFFLOAD_REQUIRED_CODE, offloadImages: count }, signal: new AbortController().signal }, () => 'unhandled');
   assert.deepEqual(result, { kind: 'retry' });
   assert.equal(decisions[0].type, 'image/offload');
   assert.deepEqual(decisions[0].data.targets.map(t => t.seq), [1,2,3,4,5,6,7,8,9]);
