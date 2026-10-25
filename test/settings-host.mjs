@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { pathToFileURL } from 'node:url';
 import * as plugin from '../lib/index.js';
 
@@ -22,7 +23,7 @@ const settle = async (condition) => {
   assert(condition(), 'settings reconciliation did not settle');
 };
 
-async function fixture(t) {
+async function fixture(t, { initialConfig, otherProviders = {}, nativeHmr = false } = {}) {
   const [{ Context, resolveConfig }, { volatileEntries, updateVolatile }, { SettingsForms }, pi] = await Promise.all([
     host('cordis'), host('cosmokit'), host('dsh-settings'), host('dsh-llm-pi-ai'),
   ]);
@@ -31,6 +32,12 @@ async function fixture(t) {
   const ctx = new Context(), rows = [], routes = new Map();
   const foreign = { api: 'openai-completions', baseURL: 'http://127.0.0.1:1/foreign', models: [{ id: 'fixture' }] };
   let tail = Promise.resolve(), edits = 0, committing = false, nestedWrites = 0;
+  // Exercise the real host transaction queue. A timer scheduled by a commit
+  // inherits its AsyncLocalStorage marker even after that commit has finished.
+  const Hmr = nativeHmr ? (await host('dsh-hmr')).default : undefined;
+  const hmr = nativeHmr ? { executing: new AsyncLocalStorage(), operations: Promise.resolve(),
+    closing: false, runExclusive: Hmr.prototype.runExclusive } : undefined;
+  if (hmr) ctx.provide('hmr', hmr);
   const editor = {
     configuration: () => rows.map(entry => ({ entry, inherited: entry.inherited, override: entry.options.config })),
     entries: () => rows,
@@ -54,9 +61,13 @@ async function fixture(t) {
         try { fiber.ctx.emit(carrier, 'loader/volatile-update', paths); }
         finally { committing = false; }
       };
-      const task = tail.then(run);
-      tail = task.catch(() => {});
-      return task;
+      const schedule = () => {
+        const task = tail.then(run);
+        tail = task.catch(() => {});
+        return task;
+      };
+      if (hmr?.executing.getStore()) nestedWrites++;
+      return hmr ? hmr.runExclusive(schedule) : schedule();
     },
   };
   ctx.provide('configEditor', editor);
@@ -65,9 +76,10 @@ async function fixture(t) {
   const settings = new SettingsForms(ctx);
   assert.equal(typeof settings.register, 'undefined');
   assert.equal(typeof settings.installSection, 'undefined');
-  const piRaw = { providers: { foreign } };
+  const piRaw = { providers: { foreign, ...otherProviders } };
   const piFork = ctx.plugin({ name: 'llm-pi-ai', Config: pi.Config, apply() {} }, piRaw);
   await piFork;
+  const initialProviders = structuredClone(piFork.config.providers.get());
   const entry = (id, fiber, raw) => ({ id, options: { id, name: id, config: structuredClone(raw) }, fiber: fiber.ctx.fiber, inherited: structuredClone(raw) });
   const piEntry = entry('llm-pi-ai', piFork, piRaw);
   rows.push(piEntry);
@@ -81,13 +93,33 @@ async function fixture(t) {
     routes.set(route.path, route.handler);
     return () => routes.delete(route.path);
   } });
-  const raw = { routes: ['generic'], modelAllowlist: ['glm-5.3-flash'], proactiveRefreshMinutes: 0,
+  const raw = initialConfig ?? { routes: ['generic'], modelAllowlist: ['glm-5.3-flash'], proactiveRefreshMinutes: 0,
     modelCompactionTokens: { 'glm-5.3-flash': 800000 } };
-  const factory = ctx.plugin(plugin, raw);
+  let factory = ctx.plugin(plugin, raw);
   rows.push(entry(plugin.name, factory, raw));
   await factory;
   const providers = () => piFork.config.providers.get();
   await settle(() => providers()['factory-g']);
+  const savedConfig = () => structuredClone(rows.find(row => row.id === plugin.name).options.config);
+  const remount = async () => {
+    // Re-read a saved document in a temporary profile, never the user's profile.
+    const document = path.join(directory, 'factory-config.json');
+    fs.writeFileSync(document, JSON.stringify(savedConfig()));
+    if (hmr) await hmr.runExclusive(() => factory.dispose());
+    else await factory.dispose();
+    await settle(() => !providers()['factory-g'] && !providers()['factory-google']);
+    assert.equal(routes.size, 0);
+    rows.splice(rows.findIndex(row => row.id === plugin.name), 1);
+    const restored = JSON.parse(fs.readFileSync(document, 'utf8'));
+    const mount = async () => {
+      factory = ctx.plugin(plugin, restored);
+      rows.push(entry(plugin.name, factory, restored));
+      await factory;
+    };
+    if (hmr) await hmr.runExclusive(mount);
+    else await mount();
+    await settle(() => providers()['factory-g']);
+  };
   const bridge = async (endpoint, data) => {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/api/dsh-factory-provider/${endpoint}`, data === undefined ? {} : {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data),
@@ -104,8 +136,71 @@ async function fixture(t) {
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(directory, { recursive: true, force: true });
   });
-  return { ctx, factory, settings, bridge, providers, edits: () => edits, nestedWrites: () => nestedWrites, routes };
+  return { ctx, get factory() { return factory; }, settings, bridge, providers, initialProviders, remount,
+    edits: () => edits, nestedWrites: () => nestedWrites, routes };
 }
+
+test('native SettingsForms: first install registers isolated Factory models without replacing native Google', { skip: !modern }, async t => {
+  const google = { baseURL: 'https://google.invalid', models: [{ id: 'personal-model' }] };
+  const f = await fixture(t, { initialConfig: { proactiveRefreshMinutes: 0 }, otherProviders: { google } });
+  assert.deepEqual(f.providers().google, f.initialProviders.google);
+  for (const key of ['factory-a', 'factory-g', 'factory-o', 'factory-google', 'factory-xai', 'factory-s']) {
+    assert(f.providers()[key]?.models.length > 0, key);
+  }
+  assert(f.providers()['factory-google'].models.some(model => model.id === 'gemini-4-argon'));
+  const config = (await f.bridge('config')).value.config;
+  assert.deepEqual(config.modelCompactionTokens, {});
+  assert.equal(config.factoryContextAlignment, true);
+});
+
+test('native SettingsForms: upgrade reload preserves selected models, thresholds and cost controls', { skip: !modern }, async t => {
+  const f = await fixture(t);
+  const saved = {
+    routes: ['generic', 'google'], modelAllowlist: ['glm-5.3-flash', 'gemini-4-argon'],
+    modelCompactionTokens: { 'glm-5.3-flash': 810000, 'gemini-4-argon': 250000 },
+    anthropicSummaryModel: 'factory-g/glm-5.3-flash', anthropicCacheTTL: '1h',
+    anthropicPreferOfficial: true, anthropicToolClear: false, quotaFloat: true,
+  };
+  const before = await f.bridge('config');
+  const result = await f.bridge('config', { expectedRevision: before.value.revision,
+    ops: Object.entries(saved).map(([key, value]) => ({ op: 'set', path: [key], value })) });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  await settle(() => f.providers()['factory-google']);
+  const oldFiber = f.factory.ctx.fiber;
+  await f.remount();
+  assert.notEqual(f.factory.ctx.fiber, oldFiber);
+  const config = (await f.bridge('config')).value.config;
+  for (const [key, value] of Object.entries(saved)) assert.deepEqual(config[key], value, key);
+  assert.deepEqual(Object.keys(f.providers()).sort(), ['factory-g', 'factory-google', 'foreign']);
+  assert.deepEqual(f.providers()['factory-g'].models.map(model => model.id), ['glm-5.3-flash']);
+  assert.deepEqual(f.providers()['factory-google'].models.map(model => model.id), ['gemini-4-argon']);
+  assert.equal(f.settings.describe().filter(row => row.ns === plugin.name).length, 1);
+  assert.equal(f.nestedWrites(), 0);
+});
+
+test('native SettingsForms: live model updates leave the real HMR transaction context', { skip: !modern }, async t => {
+  const f = await fixture(t, { nativeHmr: true });
+  const before = await f.bridge('config');
+  const result = await f.bridge('config', { expectedRevision: before.value.revision, ops: [
+    { op: 'set', path: ['routes'], value: ['generic', 'google'] },
+    { op: 'set', path: ['modelAllowlist'], value: ['glm-5.3-flash', 'gemini-4-argon'] },
+  ] });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  await settle(() => f.providers()['factory-google']);
+  assert.equal(f.nestedWrites(), 0, 'deferred work must not retain the transaction marker');
+});
+
+test('native SettingsForms: HMR reload and enable changes release and restore only owned providers', { skip: !modern }, async t => {
+  const f = await fixture(t, { nativeHmr: true });
+  await f.remount();
+  await f.settings.mutate(plugin.name, [{ op: 'set', path: ['enabled'], value: false }]);
+  await settle(() => !f.providers()['factory-g']);
+  assert.deepEqual(Object.keys(f.providers()), ['foreign']);
+  await f.settings.mutate(plugin.name, [{ op: 'set', path: ['enabled'], value: true }]);
+  await settle(() => f.providers()['factory-g']);
+  assert.equal(f.nestedWrites(), 0);
+  assert.equal(f.settings.describe().filter(row => row.ns === plugin.name).length, 1);
+});
 
 test('native SettingsForms: fiber-owned settings mount without removed APIs and preserve saved values', { skip: !modern }, async t => {
   const f = await fixture(t);

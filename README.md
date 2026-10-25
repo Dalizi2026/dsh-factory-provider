@@ -2,9 +2,17 @@
 
 把 **Factory（Droid）订阅额度接入 DeepSeek Harness（DSH）**。使用自己的 Factory API key，在 DSH 中选择 Claude、GPT、Gemini、Grok、Muse 和 Core 模型，并查看额度、Token 用量及调整压缩阈值。
 
-**当前版本：1.3.9** · [下载插件](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) · [更新记录](CHANGELOG.md) · [反馈问题](https://github.com/Dalizi2026/dsh-factory-provider/issues)
+**当前版本：1.4.0** · [下载插件](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) · [更新记录](CHANGELOG.md) · [反馈问题](https://github.com/Dalizi2026/dsh-factory-provider/issues)
 
 这是社区插件，与 Factory、DeepSeek 无官方隶属关系。需要已有的 Factory 账号、模型权限和可用额度；不会提供额外额度或绕过账号限制。
+
+## 1.4.0：适配 DSH 0.2.1-rc.3
+
+修复了新版 DSH 中「设置显示已保存，但模型目录更新报 `HMR transactions cannot be nested`」的问题。保存通知携带的异步事务标记会被定时器和重试继承；本次先退出旧标记，再通过 DSH 自身的串行队列更新或清理 Factory 模型，不绕过宿主的配置保存与校验。
+
+已在干净的官方 **0.2.1-rc.3 npm 完整宿主**和本机 **0.2.1-rc.2 桌面宿主**上各通过 **311 项测试，0 失败、0 跳过**。新增完整 Web profile 测试使用真实 Loader、ConfigEditor、HMR 和临时配置文件，覆盖首次安装、保存热生效、停用、启用和重启恢复；另用打包后的插件实际打开 rc.3 页面完成保存验证。未替换本机桌面应用，未调用付费模型。
+
+保留模型选择、自定义阈值和缓存设置；不修改模型参数、缓存策略或 dispatch 的子代理选模规则。PR #2 的悬浮窗建议与 PR #3 的 Gemini 接入已单独审查，没有直接合并。详见 [适配与 PR 审查说明](docs/DSH-0.2.1-rc.3-compatibility.md)。
 
 ## 1.3.9：适配 DSH 0.2.1-rc.1
 
@@ -28,12 +36,12 @@
 
 ## 安装
 
-需要 Node.js 20+、可用的 `dsh` 命令和 Factory API key。已用 macOS 桌面包的 **DSH 0.2.1-rc.1 / 0.2.0-rc.2** 完成离线宿主集成测试。代码包含 Windows / Linux 适配，其他系统尚未逐一实机验证。
+需要 Node.js 20+、可用的 `dsh` 命令和 Factory API key。本版已用官方 **DSH 0.2.1-rc.3 npm 完整宿主**与 macOS **0.2.1-rc.2 桌面宿主**完整回归；此前已验证 0.2.1-rc.1 / 0.2.0-rc.2。代码包含 Windows / Linux 适配，其他系统尚未逐一实机验证。
 
 ### 从 Release 安装（推荐）
 
 ```sh
-dsh plugin --profile desktop add https://github.com/Dalizi2026/dsh-factory-provider/releases/download/v1.3.9/dsh-factory-provider-1.3.9.tgz
+dsh plugin --profile desktop add https://github.com/Dalizi2026/dsh-factory-provider/releases/download/v1.4.0/dsh-factory-provider-1.4.0.tgz
 ```
 
 也可以从 [Release](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) 下载 `.tgz`，把命令末尾替换成本地文件路径。`dsh-factory-provider.tgz` 与带版本号的文件内容相同，附带 `SHA256SUMS.txt` 供校验。源码 ZIP 是仓库快照，安装请使用插件 `.tgz`。
@@ -148,7 +156,7 @@ Claude 默认缓存模式为 `auto`：客户端已有缓存标记时保留其管
 
 **缓存命中率低？** 同时看每次请求的缓存读取与新增输入。新会话首次写入、长代码生成、压缩、清理或切换上游都可能降低累计比例。短请求无法验证长前缀缓存，不保证固定命中率。
 
-**界面是新的，但接口 404 / 功能不生效？** 完整退出并重新打开 DSH；前端与网关可能加载了不同批次的代码。诊断状态接口 `/api/dsh-factory-provider/status` 应报告 `version: 1.3.9` 和目录版本 `0.243.0`。
+**界面是新的，但接口 404 / 功能不生效？** 完整退出并重新打开 DSH；前端与网关可能加载了不同批次的代码。诊断状态接口 `/api/dsh-factory-provider/status` 应报告 `version: 1.4.0` 和目录版本 `0.243.0`。
 
 **子代理提示 route is not allowed？** 先让主代理调用 `list_subagent_models`，使用当前会话允许的准确 provider/model。插件的 Factory 路由与其他插件的同名模型不是同一条路由；会话授权也由 DSH 管理。
 
@@ -164,7 +172,9 @@ npm test
 DSH_FACTORY_HOST_ROOT=/path/to/dsh/node_modules npm test
 ```
 
-1.3.9 在新版 DSH 0.2.1-rc.1 上完整回归为 **304 项通过、0 失败、0 跳过**，包括真实 DSH 适配器配合本地模拟网关的工具回传、缓存统计、会话线路保持，以及多图、压缩、配置生命周期和界面检查。旧版 0.2.0-rc.2 原有 300 项通过，四项新版 SettingsForms 专用测试跳过；未设置宿主路径时其他宿主集成测试也会跳过。
+1.4.0 在 rc.3 / rc.2 上各 **311 项通过、0 失败、0 跳过**。其中 `test/profile-host.mjs` 会启动并关闭独立临时 Web profile，不访问用户的账号目录或发送推理请求；它需要完整官方宿主，不能只提供几个接口包。最终安装包另通过 18 项宿主、设置与 Gemini 回归。未指定宿主时，这些宿主集成测试会跳过，不能据此宣称完成新版适配。
+
+1.3.9 发布时在 DSH 0.2.1-rc.1 上完整回归为 **304 项通过、0 失败、0 跳过**，包括真实 DSH 适配器配合本地模拟网关的工具回传、缓存统计、会话线路保持，以及多图、压缩、配置生命周期和界面检查。旧版 0.2.0-rc.2 原有 300 项通过，四项新版 SettingsForms 专用测试跳过。
 
 1.3.8 加入的三个模型已完成离线验证及本机配置加载检查，**尚未逐一做真实上游调用**。此前 Gemini 4 Argon、Gemini 3.8 Flash 和 Claude 的真实请求结果见 [更新记录](CHANGELOG.md)，不能据此保证所有账号或服务状态都可用。离线测试无需真实 key，不会调用付费模型。
 
@@ -173,5 +183,7 @@ DSH_FACTORY_HOST_ROOT=/path/to/dsh/node_modules npm test
 ## 致谢与许可
 
 感谢 [@huangzhenhao90](https://github.com/huangzhenhao90) 通过 [PR #1](https://github.com/Dalizi2026/dsh-factory-provider/pull/1) 贡献 DeepSeek V4.1 Flash 与 GPT-6.1 Sol 的目录更新。原始提交与署名保留；维护者随后补齐旧条目清理、官方路由、预算核实、升级兼容和回归测试。
+
+也感谢其 [PR #2](https://github.com/Dalizi2026/dsh-factory-provider/pull/2) 的悬浮窗反馈及 [PR #3](https://github.com/Dalizi2026/dsh-factory-provider/pull/3) 的 Gemini 兼容测试建议。本次参考 PR #3 的测试方向，在现有独立 Gemini 渠道上补充签名保留、凭据隔离、错误透传和禁用保护测试；未合并该 PR 的渠道实现。
 
 [MIT License](LICENSE)。

@@ -96,6 +96,74 @@ test('Google native scope is per request and leaves the host registry untouched'
   assert.equal(scopeGoogleSdk(original,{provider:'unrelated'}),original);
 });
 
+// Coverage suggested by huangzhenhao90 in PR #3; exercised against the current
+// isolated factory-google route rather than replacing the built-in google profile.
+test('Gemini gateway: signed payloads and errors survive; credentials and disabled routes stay isolated', async t => {
+  const seen = [];
+  let upstreamStatus = 200;
+  const gateway = createGateway({ resolver: { resolve: async () => ({ token: 'fk-offline', source: 'api-key' }), state: () => ({}) },
+    enabledRoutes: ['google'], gatewayPrefix: '/fixture', apiBaseURL: 'https://offline.invalid',
+    fetchImpl: async (url, init) => {
+      seen.push({ url, headers: init.headers, body: JSON.parse(init.body) });
+      if (upstreamStatus !== 200) return Response.json({ error: { message: 'fixture failure' } }, { status: upstreamStatus });
+      return new Response('data: {"candidates":[{"content":{"parts":[{"text":"OK"}]},"finishReason":"STOP"}]}\n\n',
+        { headers: { 'content-type': 'text/event-stream' } });
+    } });
+  const server = http.createServer((req, res) => {
+    const handler = gateway.routes.find(route => route.path === new URL(req.url, 'http://localhost').pathname)?.handler;
+    if (handler) void handler(req, res); else { res.statusCode = 404; res.end(); }
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
+  const base = `http://127.0.0.1:${server.address().port}/fixture/google`;
+  const signed = { role: 'model', parts: [{ text: 'You are powered by the model, named', thoughtSignature: 'c2lnbmVk' }] };
+  const body = { model: 'claude-opus-5-5', contents: [{ role: 'user', parts: [{ text: 'hello' }] }, signed] };
+  const call = (tail = 'gemini-4-argon:streamGenerateContent') => fetch(`${base}/models/${tail}`, {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': 'must-not-leak', authorization: 'Bearer must-not-leak' },
+    body: JSON.stringify(body),
+  });
+  const first = await call();
+  assert.equal(first.status, 200); assert.match(await first.text(), /"text":"OK"/);
+  assert.equal(seen[0].body.model, 'gemini-4-argon', 'the routed model wins over a conflicting body field');
+  assert.deepEqual(seen[0].body.contents[1], signed);
+  assert.equal(seen[0].headers.authorization, 'Bearer fk-offline');
+  assert.equal(seen[0].headers['x-goog-api-key'], undefined);
+  assert.equal(seen[0].headers['x-api-provider'], 'google');
+  assert.equal(body.model, 'claude-opus-5-5', 'caller data remains unchanged');
+  for (const status of [403, 503]) {
+    upstreamStatus = status;
+    const response = await call();
+    assert.equal(response.status, status); assert.match(await response.text(), /fixture failure/);
+  }
+  assert.equal(seen.length, 3, 'one upstream attempt per caller request');
+  assert(seen.every(request => request.body.model === 'gemini-4-argon'));
+  assert.equal((await call('gemini-4-argon:countTokens')).status, 404);
+  assert.equal((await call('unknown:streamGenerateContent')).status, 404);
+  gateway.configure({ routes: [] });
+  const disabled = await call();
+  assert.equal(disabled.status, 404); assert.match(await disabled.text(), /disabled/);
+  assert.equal(seen.length, 3, 'unsupported methods, models and disabled routes never dispatch upstream');
+});
+
+test('Google native: cancelling a waiting stream closes the request without retrying', async t => {
+  let requests = 0;
+  const model = await nativeServer(t, (_req, res) => {
+    requests++;
+    res.writeHead(200, { 'content-type': 'text/event-stream' });
+    res.flushHeaders();
+  });
+  const controller = new AbortController();
+  const events = [];
+  for await (const event of streamGoogleNative(model, { messages: [] }, { signal: controller.signal })) {
+    events.push(event);
+    if (event.type === 'start') controller.abort();
+  }
+  assert.equal(requests, 1);
+  assert.equal(events.at(-1).type, 'error');
+  assert.equal(events.at(-1).reason, 'aborted');
+  assert(!events.some(event => event.type === 'done'));
+});
+
 // The real host adapter and native transport send requests only to this local mock
 // gateway. Synthetic Factory responses retain signed tool calls across turns.
 test('Gemini native: real DSH adapter / native transport / gateway round-trip signatures, tools, images and usage', {skip:!root}, async t => {
