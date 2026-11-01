@@ -144,7 +144,7 @@ test('native SettingsForms: first install registers isolated Factory models with
   const google = { baseURL: 'https://google.invalid', models: [{ id: 'personal-model' }] };
   const f = await fixture(t, { initialConfig: { proactiveRefreshMinutes: 0 }, otherProviders: { google } });
   assert.deepEqual(f.providers().google, f.initialProviders.google);
-  for (const key of ['factory-a', 'factory-g', 'factory-o', 'factory-google', 'factory-xai', 'factory-s']) {
+  for (const key of ['factory-a', 'factory-g', 'factory-o', 'factory-google', 'factory-xai', 'factory-s', 'factory-m']) {
     assert(f.providers()[key]?.models.length > 0, key);
   }
   assert(f.providers()['factory-google'].models.some(model => model.id === 'gemini-4-argon'));

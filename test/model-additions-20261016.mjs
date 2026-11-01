@@ -14,7 +14,9 @@ import { createGateway } from '../lib/gateway.js';
 import { installAdaptiveImages } from '../lib/images.js';
 
 const root = process.env.DSH_FACTORY_HOST_ROOT;
-const evidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.243.0-model-additions.json', import.meta.url)));
+const oldEvidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.243.0-model-additions.json', import.meta.url)));
+const latestEvidence = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-1.1.0-model-additions.json', import.meta.url)));
+const evidence = { models: [...oldEvidence.models, ...latestEvidence.models] };
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'factory-oct16-'));
 process.env.DSH_FACTORY_JOURNAL = path.join(directory, 'journal.jsonl');
 test.after(() => fs.rmSync(directory, { recursive: true, force: true }));
@@ -25,11 +27,11 @@ test('Oct 16 models: official pool, budget, efforts, image capability and exclus
     assert.equal(spec.billingPool, record.billingPool);
     assert.equal(model.billingPool, record.billingPool);
     assert.equal(spec.key, record.provider);
-    assert.equal(model.defaultEffort, 'high');
+    assert.equal(model.defaultEffort, record.defaultReasoningEffort);
     assert.deepEqual(factoryModelLimits(spec.key, model.id), record.limits);
     assert.deepEqual(modelPreset(model.id).supportedEfforts, record.supportedReasoningEfforts);
     assert.equal(modelMultiplier(model.id), record.tokenMultiplier);
-    assert.deepEqual(providerOrder(model.id, { route: record.route }), record.apiProviders);
+    assert.deepEqual(providerOrder(model.id, { route: record.route }), record.defaultProviderOrder ?? record.apiProviders);
     const profile = buildProviderEntry(record.route, { port: 1, gatewayPrefix: '/fixture' });
     assert.equal(profile.models.find(m => m.id === model.id).input.includes('image'), record.images);
     assert.equal(resolveModelCompactionPolicy(model.id).thresholdTokens, 250000);
@@ -42,13 +44,14 @@ test('Oct 16 models: official pool, budget, efforts, image capability and exclus
   assert.deepEqual(providerOrder('muse-spark-open', { route: 'generic' }), []);
 });
 
-// The real DSH adapter and real Chat Completions SDK use a local gateway;
+// The real DSH adapter and SDK use a local gateway;
 // every upstream response is synthetic, with no real keys or model charges.
 for (const record of evidence.models) test(`Oct 16 native DSH: ${record.id} defaults, tool replay, usage and session affinity`, { skip: !root }, async t => {
+  const responses = ROUTES[record.route].api === 'openai-responses';
   const load = name => import(pathToFileURL(path.join(root, '@deepseek-ai', name, 'lib/index.js')));
   const [{ Context }, { PiAiAdapter, Config }, sdk, { normalizeContext }] = await Promise.all([
     load('cordis'), load('dsh-llm-pi-ai'),
-    import(pathToFileURL(path.join(root, '@earendil-works/pi-ai/dist/api/openai-completions.js'))),
+    import(pathToFileURL(path.join(root, `@earendil-works/pi-ai/dist/api/${ROUTES[record.route].api}.js`))),
     import(pathToFileURL(path.join(root, '@earendil-works/pi-ai/dist/utils/transcript.js'))),
   ]);
   const seen = [];
@@ -57,6 +60,29 @@ for (const record of evidence.models) test(`Oct 16 native DSH: ${record.id} defa
     enabledRoutes: [record.route], gatewayPrefix: '/fixture', apiBaseURL: 'https://offline.invalid',
     fetchImpl: async (url, init) => {
       seen.push({ url, headers: init.headers, body: JSON.parse(init.body) });
+      if (responses) {
+        const first = seen.length === 1;
+        const item = first ? { type: 'function_call', id: 'fc_fixture', call_id: 'inspect_fixture',
+          name: 'inspect', arguments: '{}', status: 'completed' }
+          : { type: 'message', id: 'msg_fixture', role: 'assistant', status: 'completed',
+            content: [{ type: 'output_text', text: 'OK', annotations: [] }] };
+        const result = { id: 'resp_fixture', object: 'response', status: 'completed', model: record.id,
+          output: [item], usage: { input_tokens: 100, output_tokens: 5, total_tokens: 105,
+            input_tokens_details: { cached_tokens: 40 } } };
+        const events = [
+          { type: 'response.created', response: { ...result, status: 'in_progress', output: [] } },
+          { type: 'response.output_item.added', output_index: 0,
+            item: { ...item, status: 'in_progress', ...(first ? { arguments: '' } : { content: [] }) } },
+          ...(first ? [{ type: 'response.function_call_arguments.delta', output_index: 0, item_id: item.id, delta: '{}' }]
+            : [{ type: 'response.content_part.added', output_index: 0, content_index: 0, item_id: item.id,
+                part: { type: 'output_text', text: '', annotations: [] } },
+              { type: 'response.output_text.delta', output_index: 0, content_index: 0, item_id: item.id, delta: 'OK' }]),
+          { type: 'response.output_item.done', output_index: 0, item },
+          { type: 'response.completed', response: result },
+        ];
+        return new Response(events.map(event => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join(''),
+          { headers: { 'content-type': 'text/event-stream' } });
+      }
       const delta = seen.length === 1 ? { role: 'assistant', reasoning_content: 'Inspecting fixture.',
         tool_calls: [{ index: 0, id: 'inspect_fixture', type: 'function', function: { name: 'inspect', arguments: '{}' } }] }
         : { role: 'assistant', content: 'OK' };
@@ -88,10 +114,11 @@ for (const record of evidence.models) test(`Oct 16 native DSH: ${record.id} defa
     tools: [{ name: 'inspect', description: 'Inspect fixture', parameters: { type: 'object', properties: {} } }] };
   const first = []; for await (const chunk of adapter.stream(args)) first.push(chunk);
   assert.equal(first.at(-1).reason.kind, 'tool-calls', JSON.stringify(first));
-  assert.equal(seen[0].body.reasoning_effort, 'high');
-  assert.equal(seen[0].body.max_tokens ?? seen[0].body.max_completion_tokens, 16);
-  assert.equal(seen[0].headers['x-api-provider'], record.apiProviders[0]);
-  assert(seen[0].url.endsWith('/api/llm/o/v1/chat/completions'));
+  assert.equal(responses ? seen[0].body.reasoning.effort : seen[0].body.reasoning_effort, record.defaultReasoningEffort);
+  assert.equal(seen[0].body.max_output_tokens ?? seen[0].body.max_tokens ?? seen[0].body.max_completion_tokens, 16);
+  assert.equal(seen[0].headers['x-api-provider'], providerOrder(record.id, { route: record.route })[0]);
+  assert(seen[0].url.endsWith(responses ? '/api/llm/o/v1/responses' : '/api/llm/o/v1/chat/completions'));
+  if (responses) assert.equal(seen[0].headers['openai-platform'], undefined);
   const blocks = first.filter(c => c.type === 'block-end').map(c => c.block);
   const call = blocks.find(block => block.type === 'tool-call'); assert(call);
   const finish = first.find(c => c.type === 'finish');
@@ -101,9 +128,17 @@ for (const record of evidence.models) test(`Oct 16 native DSH: ${record.id} defa
   const second = []; for await (const chunk of adapter.stream({ ...args, messages: next,
     reasoningEffort: record.id === 'nemotron-3.5-super' ? 'off' : 'low' })) second.push(chunk);
   assert.equal(second.at(-1).reason.kind, 'stop', JSON.stringify(second));
-  assert.equal(seen[1].body.reasoning_effort, record.id === 'nemotron-3.5-super' ? 'none' : 'low');
-  assert.equal(seen[1].body.messages.find(m => m.role === 'assistant').reasoning_content, 'Inspecting fixture.');
-  assert.equal(seen[1].body.messages.find(m => m.role === 'tool').tool_call_id, call.id);
+  assert.equal(responses ? seen[1].body.reasoning.effort : seen[1].body.reasoning_effort, record.id === 'nemotron-3.5-super' ? 'none' : 'low');
+  if (responses) {
+    const replayedCall = seen[1].body.input.find(item => item.type === 'function_call');
+    const replayedResult = seen[1].body.input.find(item => item.type === 'function_call_output');
+    assert.equal(replayedCall.name, 'inspect');
+    assert.equal(replayedCall.call_id, replayedResult.call_id);
+    assert.equal(replayedResult.output, 'fixture result');
+  } else {
+    assert.equal(seen[1].body.messages.find(m => m.role === 'assistant').reasoning_content, 'Inspecting fixture.');
+    assert.equal(seen[1].body.messages.find(m => m.role === 'tool').tool_call_id, call.id);
+  }
   assert.equal(seen[1].headers['x-session-id'], seen[0].headers['x-session-id']);
   assert.equal(seen[1].headers['x-provider-routing-source'], 'session_lock');
   assert.equal(second.find(c => c.type === 'usage').usage.cacheReadTokens, 40);

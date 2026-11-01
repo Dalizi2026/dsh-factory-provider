@@ -9,7 +9,8 @@
 #     (draws standard quota; identity gate reads the `instructions` field).
 #   factory-google — Gemini native streaming through a DSH-compatible profile.
 #   factory-xai (api: openai-responses) — Grok models (standard quota).
-#   factory-s (api: openai-completions) — Muse models (standard quota).
+#   factory-s (api: openai-completions) — Muse Open / 1.2 (standard quota).
+#   factory-m (api: openai-responses) — Muse 1.3, Google backend (standard quota).
 # All point at this plugin's loopback gateway on the dsh web port; the gateway
 # injects the Factory credential (selected API key or FACTORY_API_KEY) per
 # request. The plugin owns these provider keys; it removes them again on
@@ -26,6 +27,7 @@
           - google
           - xai
           - standard
+          - muse
         # Anthropic needs explicit cache breakpoints (measured 0% -> 99% once
         # placed). auto leaves a client that manages its own caching alone;
         # rewrite takes over placement; passthrough changes nothing.

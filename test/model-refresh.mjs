@@ -20,7 +20,8 @@ process.env.DSH_FACTORY_JOURNAL = path.join(temp, 'journal.jsonl');
 test.after(() => fs.rmSync(temp, { recursive: true, force: true }));
 const baseline = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.241.0-models.json', import.meta.url)));
 const refresh = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-0.243.0-model-additions.json', import.meta.url)));
-const evidence = { ...refresh, models: [...baseline.models, ...refresh.models] };
+const newest = JSON.parse(fs.readFileSync(new URL('./fixtures/droid-1.1.0-model-additions.json', import.meta.url)));
+const evidence = { ...newest, models: [...baseline.models, ...refresh.models, ...newest.models] };
 
 test('refresh: all models retain CLI defaults, pool and modalities; new families have separate profiles', () => {
   for (const [route, spec] of Object.entries(ROUTES)) for (const model of spec.models) {
@@ -34,6 +35,8 @@ test('refresh: all models retain CLI defaults, pool and modalities; new families
   }
   assert.equal(ROUTES.google.billingPool, 'standard'); assert.equal(ROUTES.xai.billingPool, 'standard');
   assert.equal(ROUTES.generic.billingPool, 'core');
+  assert.equal(ROUTES.muse.billingPool, 'standard');
+  assert.equal(buildProviderEntry('muse', {port:1,gatewayPrefix:'/fixture'}).api, 'openai-responses');
   assert.equal(buildModelEntries('generic').find(m => m.id === 'glm-5.2').input.includes('image'), false);
   assert.equal(buildModelEntries('anthropic').find(m => m.id === 'claude-haiku-5-5').compat.forceAdaptiveThinking, true);
   assert.deepEqual(buildModelEntries('generic').find(m => m.id === 'mistral-large-4').reasoningEfforts, {off:'none',high:'high'});
@@ -60,9 +63,14 @@ test('refresh: missing request efforts use CLI defaults; explicit efforts and di
   applyModelDefaults('anthropic',explicit);assert.equal(explicit.output_config.effort,'max');
   const gemini={model:'gemini-3.8-flash',reasoning_effort:'low',temperature:0.2};applyModelDefaults('google',gemini);
   assert.equal(gemini.reasoning_effort,'low');assert.equal(gemini.temperature,0.2);
+  const muse={model:'muse-spark-1.3'}; applyModelDefaults('muse',muse);
+  assert.deepEqual(muse.reasoning,{effort:'high'});
+  const explicitMuse={model:muse.model,reasoning:{effort:'low'}};applyModelDefaults('muse',explicitMuse);
+  assert.equal(explicitMuse.reasoning.effort,'low');
   const grok={model:'grok-4.7',prompt_cache_key:'openai-cache',service_tier:'priority'};
   applyModelDefaults('xai',grok);assert.equal(grok.reasoning.effort,'high');assert.equal(grok.service_tier,undefined);
   for (const [provider,model,field,max] of [
+    ['factory-m','muse-spark-1.3','max_output_tokens',131072],
     ['factory-google','gemini-3.8-flash','max_tokens',65536],['factory-xai','grok-4.7','max_output_tokens',63356],
     ['factory-a','claude-haiku-5-5','max_tokens',128000],['factory-g','mistral-large-4','max_completion_tokens',64000],
   ]) {
@@ -92,7 +100,7 @@ test('refresh: Mistral SSE content parts survive fragmented UTF-8, tool deltas, 
 });
 
 test('refresh: new model upstreams obey official eligibility, regional exclusions and session affinity', async () => {
-  for(const id of ['claude-haiku-5-5','mistral-large-4','mistral-medium-3.5','glm-5.2','glm-5.2-fast','gpt-5.5-pro','gpt-5.3-codex-fast',...ROUTES.google.models.map(m=>m.id),...ROUTES.xai.models.map(m=>m.id)]) {
+  for(const id of ['claude-haiku-5-5','mistral-large-4','mistral-medium-3.5','glm-5.2','glm-5.2-fast','gpt-5.5-pro','gpt-5.3-codex-fast',...ROUTES.google.models.map(m=>m.id),...ROUTES.xai.models.map(m=>m.id),...ROUTES.muse.models.map(m=>m.id)]) {
     const r=evidence.models.find(m=>m.id===id);assert.deepEqual(PROVIDER_ROUTING_DATA.models[id].providers,r.apiProviders,id);
     assert(providerOrder(id).length>0,id);assert.deepEqual(providerOrder(id,{route:'wrong'}),[]);
   }
@@ -100,14 +108,16 @@ test('refresh: new model upstreams obey official eligibility, regional exclusion
   assert.deepEqual(providerOrder('mistral-large-4',{region:'us'}),[]);
   assert.deepEqual(providerOrder('glm-5.2',{region:'eu'}),['mistral']);
   assert.deepEqual(providerOrder('gemini-3.1-pro-preview',{region:'us'}),[]);
+  assert.deepEqual(providerOrder('muse-spark-1.3',{region:'eu'}),[]);
   const config=sanitizeRoutingConfig(PROVIDER_ROUTING_DATA.config);assert.deepEqual(config.defaults.google,['google']);assert.deepEqual(config.defaults.xai,['xai']);
   const router=createProviderRouter();
-  for(const route of ['google','xai']) {
+  for(const route of ['google','xai','muse']) {
     const args={credential:{token:'fk-offline'},model:ROUTES[route].models[0].id,route,host:'https://offline.invalid',session:'stable'};
     const first=await router.select(args);first.success();assert.equal((await router.select(args)).source,'session_lock');
     const snapshot={profiles:new Map([[ROUTES[route].key,{}]])};
     assert(scopeFactoryRequest(snapshot,{provider:ROUTES[route].key,sessionId:'thread'}).profiles.get(ROUTES[route].key).headers[FACTORY_REQUEST_SESSION_HEADER]);
   }
+  assert.deepEqual(sessionKeyParts('muse',{instructions:'system',input:[{role:'user',content:[{type:'input_text',text:'hello'}]}]}),{system:'system',firstUser:'hello'});
   assert.deepEqual(sessionKeyParts('xai',{instructions:'system',input:[{role:'user',content:[{type:'input_text',text:'hello'}]}]}),{system:'system',firstUser:'hello'});
 });
 
@@ -136,6 +146,7 @@ test('refresh: all configured protocols/groups reach the right Factory path, too
     ['openai','gpt-5.5-pro','openai','/api/llm/o/v1/responses'],
     ['google','gemini-4-argon','google','/api/llm/g/v1/generate'],
     ['xai','grok-4.7','xai','/api/llm/o/v1/responses'],
+    ['muse','muse-spark-1.3','google','/api/llm/o/v1/responses'],
   ]) {
     const spec=ROUTES[route],responses=spec.api==='openai-responses';
     const body=route==='google'?{model,contents:[{role:'user',parts:[{text:'Inspect'},{inlineData:{mimeType:'image/png',data:'AA=='}}]}],generationConfig:{maxOutputTokens:16},tools:[{functionDeclarations:[{name:'inspect',parameters:{type:'object'}}]}]}:responses?{model,input:[{role:'user',content:[{type:'input_text',text:'Inspect'},{type:'input_image',image_url:'data:image/png;base64,AA=='}]}],max_output_tokens:16,tools:[{type:'function',name:'inspect',parameters:{type:'object'}}]}:
@@ -145,10 +156,14 @@ test('refresh: all configured protocols/groups reach the right Factory path, too
     const sent=fixture.seen.at(-1);assert(sent.url.endsWith(suffix));assert.equal(sent.headers['x-api-provider'],provider);
     assert.equal(sent.headers['x-session-id'],fixture.seen.at(-2).headers['x-session-id']);assert.equal(sent.headers['x-provider-routing-source'],'session_lock');
     assert.equal(sent.body.tools.length,1);assert.equal(sent.body.max_tokens??sent.body.max_output_tokens??sent.body.generationConfig?.maxOutputTokens,16);
-    if(route==='xai')assert.equal(sent.headers['openai-platform'],undefined);
+    if(route==='muse'){assert.equal(sent.body.reasoning.effort,'high');assert.equal(sent.body.messages,undefined);}
+    if(route==='xai'||route==='muse')assert.equal(sent.headers['openai-platform'],undefined);
     if(route==='google')assert.equal(sent.body.contents[0].parts[1].inlineData.data,'AA==');
   }
   fixture.gateway.configure({routes:['anthropic']});
+  const requestsBefore=fixture.seen.length;
+  assert.equal((await fetch(`${fixture.base}/muse/v1/responses`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({model:'muse-spark-1.3',input:'Hello'})})).status,404);
+  assert.equal(fixture.seen.length,requestsBefore);
   assert.equal((await fetch(`${fixture.base}/google/v1/chat/completions`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({model:'gemini-3.8-flash'})})).status,404);
 });
 
@@ -169,7 +184,7 @@ test('refresh UI: route groups use human names, independent fold state and per-g
 
 // The installed SDK itself parses synthetic upstream SSE. The custom fetch
 // never contacts Factory (or any other server) and uses no saved credentials.
-for (const [route, id] of [['anthropic','claude-haiku-5-5'],['generic','mistral-large-4'],['xai','grok-4.7']]) {
+for (const [route, id] of [['anthropic','claude-haiku-5-5'],['generic','mistral-large-4'],['xai','grok-4.7'],['muse','muse-spark-1.3']]) {
   test(`refresh SDK: ${id} parses the complete upstream stream`, {skip:!process.env.DSH_FACTORY_HOST_ROOT}, async () => {
     const profile = buildProviderEntry(route,{port:1,gatewayPrefix:'/fixture'});
     const entry = profile.models.find(m=>m.id===id);

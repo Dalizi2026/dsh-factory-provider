@@ -793,5 +793,59 @@
     "images": false,
     "tokenMultiplier": 0.5,
     "promotions": []
+  },
+  "deepseek-v4.1-flash-1017": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "off",
+      "low",
+      "high",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 0.12,
+    "promotions": []
+  },
+  "minimax-m3.1-flash": {
+    "defaultEffort": "max",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": true,
+    "tokenMultiplier": 0.06,
+    "promotions": []
+  },
+  "beam-1.0": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "billingPool": "core",
+    "images": false,
+    "tokenMultiplier": 0.52,
+    "promotions": []
+  },
+  "muse-spark-1.3": {
+    "defaultEffort": "high",
+    "supportedEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "billingPool": "standard",
+    "images": false,
+    "tokenMultiplier": 0.5,
+    "promotions": []
   }
 }

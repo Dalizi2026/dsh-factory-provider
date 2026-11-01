@@ -1,10 +1,27 @@
 # dsh-factory-provider
 
+**1.4.1（2026-11-02）**：依据官方桌面版随附的 **Droid 1.1.0**，新增 DeepSeek V4.1 Flash 1017、MiniMax M3.1 Flash、Beam 1.0 和 Muse Spark 1.3。前三个归入 Core；Muse 1.3 归入标准池，独立使用 Google 上游的 Responses 接口。旧模型选择和自定义阈值保留。本版完成离线宿主验证，未进行真实付费调用。
+
 把 **Factory（Droid）订阅额度接入 DeepSeek Harness（DSH）**。使用自己的 Factory API key，在 DSH 中选择 Claude、GPT、Gemini、Grok、Muse 和 Core 模型，并查看额度、Token 用量及调整压缩阈值。
 
-**当前版本：1.4.0** · [下载插件](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) · [更新记录](CHANGELOG.md) · [反馈问题](https://github.com/Dalizi2026/dsh-factory-provider/issues)
+**当前版本：1.4.1** · [下载插件](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) · [更新记录](CHANGELOG.md) · [反馈问题](https://github.com/Dalizi2026/dsh-factory-provider/issues)
 
 这是社区插件，与 Factory、DeepSeek 无官方隶属关系。需要已有的 Factory 账号、模型权限和可用额度；不会提供额外额度或绕过账号限制。
+
+## 1.4.1：Droid 1.1.0 新模型
+
+| 模型 | 分类 | 倍率 | 最大输入 / 输出预算 | 默认思考 | 图片 |
+| --- | --- | --- | --- | --- | --- |
+| DeepSeek V4.1 Flash 1017 | Core | 0.12× | 908,928 / 131,072 | high | 支持 |
+| MiniMax M3.1 Flash | Core | 0.06× | 868,928 / 131,072 | max | 支持 |
+| Beam 1.0 | Core | 0.52× | 1,015,808 / 32,768 | high | 不支持 |
+| Muse Spark 1.3 | 标准池 → Muse 1.3 | 0.5× | 908,928 / 131,072 | high | 不支持 |
+
+完整 macOS DSH 0.2.1-rc.3 宿主回归：**316 项通过，0 失败、0 跳过**，包含原生适配器的两轮工具调用、结果回传、缓存用量解析及同线程线路保持。上游响应由本地模拟，不能代替真实账号可用性测试。
+
+四者默认 **250,000 token 开始压缩**，与这版 CLI 的登记一致，可在模型卡中修改。这里的输入输出数值是 CLI 适配器预算，并非实测服务器硬上限。MiniMax 默认思考为 `max`，可以自行调低。
+
+升级后，完整重启 DSH，到 **设置 → Factory (Droid) → 模型**勾选新型号并保存。Muse 1.3 需要单独启用「Muse 1.3（标准池）」分组；旧 Muse 的接入和用户自有 Google 配置保留。新安装默认启用该分组，旧安装保留原有启用范围。Muse 1.3 按 CLI 登记限制 EU 区域。
 
 ## 1.4.0：适配 DSH 0.2.1-rc.3
 
@@ -41,7 +58,7 @@
 ### 从 Release 安装（推荐）
 
 ```sh
-dsh plugin --profile desktop add https://github.com/Dalizi2026/dsh-factory-provider/releases/download/v1.4.0/dsh-factory-provider-1.4.0.tgz
+dsh plugin --profile desktop add https://github.com/Dalizi2026/dsh-factory-provider/releases/download/v1.4.1/dsh-factory-provider-1.4.1.tgz
 ```
 
 也可以从 [Release](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) 下载 `.tgz`，把命令末尾替换成本地文件路径。`dsh-factory-provider.tgz` 与带版本号的文件内容相同，附带 `SHA256SUMS.txt` 供校验。源码 ZIP 是仓库快照，安装请使用插件 `.tgz`。
@@ -77,14 +94,15 @@ dsh plugin --profile desktop remove dsh-factory-provider
 
 | 设置页分组 | 额度池 | 接入方式 |
 | --- | --- | --- |
-| Droid Core：GLM、Kimi、MiniMax、DeepSeek、Mistral、Nemotron 等 | 先用标准额度，耗尽后可用 Core | Chat Completions |
+| Droid Core：GLM、Kimi、MiniMax、DeepSeek、Mistral、Nemotron、Beam 等 | 先用标准额度，耗尽后可用 Core | Chat Completions |
 | Claude | 标准 | Anthropic Messages |
 | GPT | 标准 | Responses |
 | Gemini（含 Gemini 4 Argon） | 标准 | 插件内置原生 Gemini 流转换 |
 | Grok | 标准 | Responses |
-| Muse | 标准 | Chat Completions |
+| Muse Open / 1.2 | 标准 | Chat Completions |
+| Muse 1.3 | 标准 | Responses（Google 上游） |
 
-「倍率低」不等于「Core 模型」，两个 Muse 不归入 Core。模型倍率和促销有效期按已核实的目录显示；实际可用性及额度计算由 Factory 决定。
+「倍率低」不等于「Core 模型」，Muse 不归入 Core。模型倍率和促销有效期按已核实的目录显示；实际可用性及额度计算由 Factory 决定。
 
 每组可以独立折叠、启用和全选。模型勾选列表为空代表全部显示；列表非空时，只显示已勾选模型。禁用分组会移除该组的插件配置，不影响其他来源的模型。
 
@@ -156,7 +174,7 @@ Claude 默认缓存模式为 `auto`：客户端已有缓存标记时保留其管
 
 **缓存命中率低？** 同时看每次请求的缓存读取与新增输入。新会话首次写入、长代码生成、压缩、清理或切换上游都可能降低累计比例。短请求无法验证长前缀缓存，不保证固定命中率。
 
-**界面是新的，但接口 404 / 功能不生效？** 完整退出并重新打开 DSH；前端与网关可能加载了不同批次的代码。诊断状态接口 `/api/dsh-factory-provider/status` 应报告 `version: 1.4.0` 和目录版本 `0.243.0`。
+**界面是新的，但接口 404 / 功能不生效？** 完整退出并重新打开 DSH；前端与网关可能加载了不同批次的代码。诊断状态接口 `/api/dsh-factory-provider/status` 应报告 `version: 1.4.1` 和目录版本 `1.1.0`。
 
 **子代理提示 route is not allowed？** 先让主代理调用 `list_subagent_models`，使用当前会话允许的准确 provider/model。插件的 Factory 路由与其他插件的同名模型不是同一条路由；会话授权也由 DSH 管理。
 
@@ -178,7 +196,7 @@ DSH_FACTORY_HOST_ROOT=/path/to/dsh/node_modules npm test
 
 1.3.8 加入的三个模型已完成离线验证及本机配置加载检查，**尚未逐一做真实上游调用**。此前 Gemini 4 Argon、Gemini 3.8 Flash 和 Claude 的真实请求结果见 [更新记录](CHANGELOG.md)，不能据此保证所有账号或服务状态都可用。离线测试无需真实 key，不会调用付费模型。
 
-模型预算证据保存在 `test/fixtures/`；已有模型以 CLI 0.241.0 审计表为基础，本版新增条目取自 0.243.0。压缩策略单独维护，避免把插件策略误写成官方默认。
+模型预算证据保存在 `test/fixtures/`；已有模型以 CLI 0.241.0 审计表为基础，后续新增条目取自 0.243.0 和 1.1.0。压缩策略单独维护，避免把插件策略误写成官方默认。
 
 ## 致谢与许可
 

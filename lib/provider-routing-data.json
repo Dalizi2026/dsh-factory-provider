@@ -1,8 +1,8 @@
 {
   "source": {
-    "cliVersion": "0.243.0",
-    "routingSnapshotDate": "2026-10-16",
-    "routingSnapshot": "Existing audited orders preserved; additions from official CLI 0.243.0; refreshed per API key at runtime"
+    "cliVersion": "1.1.0",
+    "routingSnapshotDate": "2026-11-02",
+    "routingSnapshot": "Existing audited orders preserved; additions from official CLI 0.243.0 and 1.1.0; refreshed per API key at runtime"
   },
   "providerRegions": {
     "anthropic": [
@@ -312,6 +312,19 @@
       ],
       "muse-spark-1.2": [
         "fireworks"
+      ],
+      "deepseek-v4.1-flash-1017": [
+        "baseten",
+        "fireworks"
+      ],
+      "minimax-m3.1-flash": [
+        "fireworks"
+      ],
+      "beam-1.0": [
+        "baseten"
+      ],
+      "muse-spark-1.3": [
+        "google"
       ]
     },
     "blockedProviders": {}
@@ -942,6 +955,39 @@
         "fireworks"
       ],
       "regionOverrides": {}
+    },
+    "deepseek-v4.1-flash-1017": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks",
+        "baseten",
+        "databricks"
+      ]
+    },
+    "minimax-m3.1-flash": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "fireworks"
+      ]
+    },
+    "beam-1.0": {
+      "family": "factory",
+      "route": "generic",
+      "providers": [
+        "baseten"
+      ]
+    },
+    "muse-spark-1.3": {
+      "family": "factory",
+      "route": "muse",
+      "providers": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": []
+      }
     }
   }
 }

@@ -70,7 +70,7 @@ test('full native profile: first install, live settings, disable/enable and upgr
     }
     assert.fail(`provider update did not settle: ${JSON.stringify((await bridge('status')).plugin)}`);
   };
-  await settled(['factory-a', 'factory-g', 'factory-o', 'factory-google', 'factory-xai', 'factory-s']);
+  await settled(['factory-a', 'factory-g', 'factory-o', 'factory-google', 'factory-xai', 'factory-s', 'factory-m']);
   const packageVersion = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
   assert.equal((await bridge('status')).version, packageVersion, 'the running gateway reports the installed package version');
   const save = async fields => {

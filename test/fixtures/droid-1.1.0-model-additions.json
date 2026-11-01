@@ -1,0 +1,138 @@
+{
+  "version": "1.1.0",
+  "checkedDate": "2026-11-02",
+  "source": "Factory Desktop 1.1.0 bundled CLI",
+  "binarySHA256": "0db9584997447bbaa40613366113790c0cc947a1fab29973e26908206a8e5ea5",
+  "models": [
+    {
+      "id": "deepseek-v4.1-flash-1017",
+      "name": "DeepSeek V4.1 Flash 1017",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "off",
+        "low",
+        "high",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "tokenMultiplier": 0.12,
+      "apiProviders": [
+        "fireworks",
+        "baseten",
+        "databricks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1040000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 908928,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "registrySource": "\"deepseek-v4.1-flash-1017\":{id:\"deepseek-v4.1-flash-1017\",name:\"DeepSeek V4.1 Flash 1017\",shortName:\"DeepSeek V4.1 Flash 1017\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",featureFlag:w.DeepSeekV41Flash1017,apiProviders:[\"fireworks\",\"baseten\",\"databricks\"],routingConfig:m.DEEPSEEK_V4_1_FLASH_1017,apiProviderConfig:{fireworks:{...Y,modelId:\"accounts/fireworks/models/deepseek-v4p1-flash-1017\"},baseten:{...Y,modelId:\"deepseek-ai/DeepSeek-V4.1-Flash-1017\",chatCompletions:{...Y.chatCompletions,thinkingMode:\"reasoning-effort\"}},databricks:{...yt,modelId:\"system.ai.deepseek-v4-1-flash-1017\"}},reasoningEffort:{supported:[\"off\",\"low\",\"high\",\"max\"],default:\"high\"},chatCompletionRequest:Pe(),tier:\"standard\",billingPool:\"core\",images:!0,pdf:!1,contextLimits:c(1040000,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.12,cacheReadTokenMultiplier:0.024,outputTokenMultiplier:4},usesUSBasedInference:!0,matchPatterns:[/deepseek[^a-z0-9]*v?4(?:[^a-z0-9]*1|p1)[^a-z0-9]*flash[^a-z0-9]*1017/i],newUntil:new Date(\"2026-10-22T00:00:00Z\")}",
+      "byteOffset": 184720724,
+      "defaultProviderOrder": [
+        "baseten",
+        "fireworks"
+      ]
+    },
+    {
+      "id": "minimax-m3.1-flash",
+      "name": "MiniMax M3.1 Flash",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": true,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "max",
+      "tokenMultiplier": 0.06,
+      "apiProviders": [
+        "fireworks"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1000000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 868928,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "registrySource": "\"minimax-m3.1-flash\":{id:\"minimax-m3.1-flash\",newUntil:new Date(\"2026-10-28T00:00:00Z\"),name:\"MiniMax M3.1 Flash\",shortName:\"MiniMax M3.1 Flash\",matchPatterns:[/minimax-m3p1-flash/i],provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"fireworks\"],apiProviderConfig:{fireworks:{...Io,modelId:\"accounts/fireworks/models/minimax-m3p1-flash\"}},reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"max\"},thinking:(o)=>F2(o)?{output_config:{effort:o},betaFlags:[]}:void 0,chatCompletionRequest:ao(),systemPromptAdditions:{batchTodoWrite:!0},tier:\"standard\",billingPool:\"core\",featureFlag:w.MinimaxM31Flash,images:!0,pdf:!1,contextLimits:c(1e6,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.06,outputTokenMultiplier:4},usesUSBasedInference:!0}",
+      "byteOffset": 184724796
+    },
+    {
+      "id": "beam-1.0",
+      "name": "Beam 1.0",
+      "route": "generic",
+      "provider": "factory-g",
+      "family": "factory",
+      "billingPool": "core",
+      "images": false,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "defaultReasoningEffort": "high",
+      "tokenMultiplier": 0.52,
+      "apiProviders": [
+        "baseten"
+      ],
+      "regionOverrides": {},
+      "limits": {
+        "contextWindow": 1048576,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 1015808,
+        "maxOutputTokens": 32768,
+        "defaultCompactionLimit": 250000
+      },
+      "registrySource": "\"beam-1.0\":{id:\"beam-1.0\",name:\"Beam 1.0\",shortName:\"Beam 1.0\",provider:\"factory\",apiModelProvider:\"generic-chat-completion-api\",apiProviders:[\"baseten\"],featureFlag:w.Beam10,matchPatterns:[/^(?:reflection\\/)?beam[- ]1\\.0$/i],chatCompletionRequest:Z(),apiProviderConfig:{baseten:{modelId:\"reflection/Beam-1.0\",chatCompletions:{thinkingMode:\"reasoning-effort\",buildRequestParams:({effort:o})=>({reasoning_effort:o,allow_missing_thinking:!0})}}},reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\",\"max\"],default:\"high\"},tier:\"standard\",billingPool:\"core\",newUntil:new Date(\"2026-10-21T00:00:00Z\"),images:!1,pdf:!1,contextLimits:c(1048576,32768),disabledForPilots:!1,cost:{tokenMultiplier:0.52,outputTokenMultiplier:3.3076923076923075},usesUSBasedInference:!0}",
+      "byteOffset": 184736097
+    },
+    {
+      "id": "muse-spark-1.3",
+      "name": "Muse Spark 1.3",
+      "route": "muse",
+      "provider": "factory-m",
+      "family": "factory",
+      "billingPool": "standard",
+      "images": false,
+      "supportedReasoningEfforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "defaultReasoningEffort": "high",
+      "tokenMultiplier": 0.5,
+      "apiProviders": [
+        "google"
+      ],
+      "regionOverrides": {
+        "eu": []
+      },
+      "limits": {
+        "contextWindow": 1040000,
+        "capacityKind": "cli-total",
+        "maxInputTokens": 908928,
+        "maxOutputTokens": 131072,
+        "defaultCompactionLimit": 250000
+      },
+      "registrySource": "\"muse-spark-1.3\":{id:\"muse-spark-1.3\",name:\"Muse Spark 1.3\",shortName:\"Muse Spark 1.3\",provider:\"factory\",apiEndpoint:\"responses\",apiProviders:[\"google\"],apiProviderConfig:{google:{publisher:\"meta\",publicEndpoint:!1}},reasoningEffort:{supported:[\"low\",\"medium\",\"high\",\"xhigh\"],default:\"high\"},tier:\"standard\",featureFlag:w.MuseSpark13,newUntil:new Date(\"2026-10-27T00:00:00Z\"),images:!1,pdf:!1,contextLimits:c(1040000,131072),disabledForPilots:!1,cost:{tokenMultiplier:0.5,cacheReadTokenMultiplier:0.12,outputTokenMultiplier:3.4},regionOverrides:{eu:{apiProviders:[]},us:L}}",
+      "byteOffset": 184734228
+    }
+  ]
+}
