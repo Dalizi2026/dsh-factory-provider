@@ -347,6 +347,12 @@ test("catalog: model entries carry limits and per-model effort selectors", () =>
   }
 });
 
+test("catalog: Qwen disables developer-role serialization without changing other Core models", () => {
+  const generic = buildModelEntries("generic");
+  assert.deepEqual(generic.find((entry) => entry.id === "qwen3.8-max").compat, { supportsDeveloperRole: false });
+  for (const entry of generic.filter((entry) => entry.id !== "qwen3.8-max")) assert.equal(entry.compat, undefined, entry.id);
+});
+
 test("catalog: refreshed against the live edge — dot id, no region-gated, new Core models", () => {
   const anthropic = buildModelEntries("anthropic").map((e) => e.id);
   // Fable 5.1's wire id uses a DOT: the hyphenated form answers "Invalid model ID".
@@ -398,6 +404,7 @@ test("catalog: provider entries point at the loopback gateway with per-route def
   assert.equal(g.api, "openai-completions");
   assert.equal(g.baseURL, "http://127.0.0.1:19387/api/dsh-factory-provider/o/v1");
   assert.deepEqual(g.compat, { thinkingFormat: "openai", supportsReasoningEffort: true });
+  assert.deepEqual(g.models.find((model) => model.id === "qwen3.8-max").compat, { supportsDeveloperRole: false });
   assert.equal(g.headers.authorization, "Bearer factory-gateway");
   assert.equal(ROUTES.anthropic.key, "factory-a");
   assert.equal(ROUTES.generic.key, "factory-g");

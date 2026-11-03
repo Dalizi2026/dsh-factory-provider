@@ -156,7 +156,7 @@ test('native SettingsForms: first install registers isolated Factory models with
 test('native SettingsForms: upgrade reload preserves selected models, thresholds and cost controls', { skip: !modern }, async t => {
   const f = await fixture(t);
   const saved = {
-    routes: ['generic', 'google'], modelAllowlist: ['glm-5.3-flash', 'gemini-4-argon'],
+    routes: ['generic', 'google'], modelAllowlist: ['glm-5.3-flash', 'qwen3.8-max', 'gemini-4-argon'],
     modelCompactionTokens: { 'glm-5.3-flash': 810000, 'gemini-4-argon': 250000 },
     anthropicSummaryModel: 'factory-g/glm-5.3-flash', anthropicCacheTTL: '1h',
     anthropicPreferOfficial: true, anthropicToolClear: false, quotaFloat: true,
@@ -172,7 +172,8 @@ test('native SettingsForms: upgrade reload preserves selected models, thresholds
   const config = (await f.bridge('config')).value.config;
   for (const [key, value] of Object.entries(saved)) assert.deepEqual(config[key], value, key);
   assert.deepEqual(Object.keys(f.providers()).sort(), ['factory-g', 'factory-google', 'foreign']);
-  assert.deepEqual(f.providers()['factory-g'].models.map(model => model.id), ['glm-5.3-flash']);
+  assert.deepEqual(f.providers()['factory-g'].models.map(model => model.id), ['glm-5.3-flash', 'qwen3.8-max']);
+  assert.equal(f.providers()['factory-g'].models.find(model => model.id === 'qwen3.8-max').compat.supportsDeveloperRole, false);
   assert.deepEqual(f.providers()['factory-google'].models.map(model => model.id), ['gemini-4-argon']);
   assert.equal(f.settings.describe().filter(row => row.ns === plugin.name).length, 1);
   assert.equal(f.nestedWrites(), 0);
