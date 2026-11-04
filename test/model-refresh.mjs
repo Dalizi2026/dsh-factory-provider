@@ -11,6 +11,7 @@ import { factoryModelLimits, clampFactoryOutputTokens } from '../lib/model-limit
 import { modelPreset, modelMultiplier, applyModelDefaults, adaptMistralResponse } from '../lib/model-presets.js';
 import { PROVIDER_ROUTING_DATA, providerOrder, createProviderRouter, sanitizeRoutingConfig } from '../lib/provider-routing.js';
 import { createGateway } from '../lib/gateway.js';
+import { normalizeGenericPayload } from '../lib/sanitize.js';
 import { sessionKeyParts } from '../lib/session.js';
 import { scopeFactoryRequest, FACTORY_REQUEST_SESSION_HEADER } from '../lib/request-purpose.js';
 import { resolveModelCompactionPolicy } from '../lib/compaction-policy.js';
@@ -223,3 +224,28 @@ for (const [route, id] of [['anthropic','claude-haiku-5-5'],['generic','mistral-
     if(id.startsWith('mistral-'))assert.equal(chunks.at(-1).message.content.find(block=>block.type==='thinking').thinking,'Thought');
   });
 }
+
+test('refresh SDK: Qwen keeps one leading system message before and after a tool result', {skip:!process.env.DSH_FACTORY_HOST_ROOT}, async () => {
+  const profile=buildProviderEntry('generic',{port:1,gatewayPrefix:'/fixture',allowlist:['qwen3.8-max']});
+  const entry=profile.models[0];
+  const model={...entry,provider:'factory-g',api:profile.api,baseUrl:profile.baseURL,reasoning:true};
+  const compat={...profile.compat,...entry.compat};
+  // pi-ai detects unknown OpenAI-compatible routes as developer-capable by default.
+  compat.supportsDeveloperRole ??= true;
+  const [{convertMessages},{normalizeContext}]=await Promise.all([
+    import(pathToFileURL(path.join(process.env.DSH_FACTORY_HOST_ROOT,'@earendil-works/pi-ai/dist/api/openai-completions.js'))),
+    import(pathToFileURL(path.join(process.env.DSH_FACTORY_HOST_ROOT,'@earendil-works/pi-ai/dist/utils/transcript.js'))),
+  ]);
+  const tools=[{name:'inspect',description:'Inspect a value',parameters:{type:'object',properties:{}}}];
+  const user={role:'user',content:'Inspect the value.',timestamp:0};
+  const assistant={role:'assistant',provider:model.provider,api:model.api,model:model.id,stopReason:'toolCalls',
+    content:[{type:'toolCall',id:'call_1',name:'inspect',arguments:{}}],timestamp:0};
+  const result={role:'toolResult',toolCallId:'call_1',toolName:'inspect',content:[{type:'text',text:'value'}],isError:false,timestamp:0};
+  for(const [messages,roles] of [[ [user], ['system','user'] ],[ [user,assistant,result], ['system','user','assistant','tool'] ]]) {
+    const context=normalizeContext({systemPrompt:'Stable system prompt.',messages,tools});
+    const payload={model:model.id,messages:convertMessages(model,context,compat)};
+    normalizeGenericPayload(payload);
+    assert.deepEqual(payload.messages.map(message=>message.role),roles);
+    assert.match(payload.messages[0].content,/Stable system prompt\./);
+  }
+});
