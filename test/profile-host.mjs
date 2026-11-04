@@ -71,6 +71,19 @@ test('full native profile: first install, live settings, disable/enable and upgr
     assert.fail(`provider update did not settle: ${JSON.stringify((await bridge('status')).plugin)}`);
   };
   await settled(['factory-a', 'factory-g', 'factory-o', 'factory-google', 'factory-xai', 'factory-s', 'factory-m']);
+  const activeImages = async () => {
+    for (let n = 0; n < 200; n++) {
+      const state = (await bridge('status')).plugin.adaptiveImages;
+      if (state?.state === 'active') {
+        assert(state.adapters > 0, 'image and request metadata hooks attach to the real LLM adapter');
+        assert(!Object.values(state.providers).includes('unsupported'), JSON.stringify(state));
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    assert.fail(`Factory adapter hooks did not attach: ${JSON.stringify((await bridge('status')).plugin.adaptiveImages)}`);
+  };
+  await activeImages();
   const packageVersion = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
   assert.equal((await bridge('status')).version, packageVersion, 'the running gateway reports the installed package version');
   const save = async fields => {
@@ -84,10 +97,13 @@ test('full native profile: first install, live settings, disable/enable and upgr
   await save(selected);
   await settled(['factory-g', 'factory-google']);
   await save({ enabled: false }); await settled([]);
+  assert.equal((await bridge('status')).plugin.adaptiveImages.state, 'disabled');
   await save({ enabled: true }); await settled(['factory-g', 'factory-google']);
+  await activeImages();
   await stop();
   base = await boot();
   await settled(['factory-g', 'factory-google']);
+  await activeImages();
   const restored = (await bridge('config')).value.config;
   for (const [field, value] of Object.entries(selected)) assert.deepEqual(restored[field], value, field);
   assert.equal(restored.enabled, true);

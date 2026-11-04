@@ -1,12 +1,22 @@
 # dsh-factory-provider
 
-**1.4.1（2026-11-02）**：依据官方桌面版随附的 **Droid 1.1.0**，新增 DeepSeek V4.1 Flash 1017、MiniMax M3.1 Flash、Beam 1.0 和 Muse Spark 1.3。前三个归入 Core；Muse 1.3 归入标准池，独立使用 Google 上游的 Responses 接口。旧模型选择和自定义阈值保留。本版完成离线宿主验证，未进行真实付费调用。
+**1.4.2（2026-11-04）**：验证官方默认更新分支 **DSH 0.2.1-rc.5**，保留 rc.3 兼容；同时补齐 Gemini 4 Argon 长工具参数的分段接收与重组。本次不适配 0.2.2 alpha 预览分支。本机已安装验证，账号与原有设置保留。
 
 把 **Factory（Droid）订阅额度接入 DeepSeek Harness（DSH）**。使用自己的 Factory API key，在 DSH 中选择 Claude、GPT、Gemini、Grok、Muse 和 Core 模型，并查看额度、Token 用量及调整压缩阈值。
 
-**当前版本：1.4.1** · [下载插件](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) · [更新记录](CHANGELOG.md) · [反馈问题](https://github.com/Dalizi2026/dsh-factory-provider/issues)
+**当前版本：1.4.2** · [下载插件](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) · [更新记录](CHANGELOG.md) · [反馈问题](https://github.com/Dalizi2026/dsh-factory-provider/issues)
 
 这是社区插件，与 Factory、DeepSeek 无官方隶属关系。需要已有的 Factory 账号、模型权限和可用额度；不会提供额外额度或绕过账号限制。
+
+## 1.4.2：验证 DSH 0.2.1-rc.5
+
+比对官方 rc.5 与 rc.3 的实际运行包，插件使用的 SettingsForms、ConfigEditor、HMR、pi-ai 适配器和压缩接口实现一致，无需改写转发协议。扩展完整 Web profile 回归，检查图片与请求元数据适配在首次加载、重新启用和重启后确实挂接，避免仅凭模型目录出现就判定成功。
+
+rc.5 和 rc.3 各 **330 项通过、0 失败、0 跳过**，包含配置实际保存、模型注册、多图、摘要、413 恢复、工具回传、流取消及同模型上游轮换。模型参数、缓存策略与用户设置保持原样，未执行真实付费推理请求。详见 [rc.5 兼容验证说明](docs/DSH-0.2.1-rc.5-compatibility.md)。
+
+Argon 声明了工具时默认开启参数流式传输；插件收齐参数后才输出一次完整工具调用，保留签名、调用 ID 和用量。分段进度会传给宿主空闲计时器，真正无数据时仍正常超时。显式关闭参数流式传输时保留用户选择；其他模型不自动开启。详见 [Argon 修复说明](docs/Gemini-Argon-streaming-fix.md)。
+
+本机已从旧插件升级至 1.4.2，重启后网关显示 `applied`，图片与请求元数据适配正常挂接。设置页保存及恢复通过，原有模型选择、压缩设置和账号文件保持一致；额度和 Token 统计页面正常加载。最终安装包另通过 43 项宿主回归。本轮没有调用付费模型。
 
 ## 1.4.1：Droid 1.1.0 新模型
 
@@ -58,7 +68,7 @@
 ### 从 Release 安装（推荐）
 
 ```sh
-dsh plugin --profile desktop add https://github.com/Dalizi2026/dsh-factory-provider/releases/download/v1.4.1/dsh-factory-provider-1.4.1.tgz
+dsh plugin --profile desktop add https://github.com/Dalizi2026/dsh-factory-provider/releases/download/v1.4.2/dsh-factory-provider-1.4.2.tgz
 ```
 
 也可以从 [Release](https://github.com/Dalizi2026/dsh-factory-provider/releases/latest) 下载 `.tgz`，把命令末尾替换成本地文件路径。`dsh-factory-provider.tgz` 与带版本号的文件内容相同，附带 `SHA256SUMS.txt` 供校验。源码 ZIP 是仓库快照，安装请使用插件 `.tgz`。
@@ -174,7 +184,7 @@ Claude 默认缓存模式为 `auto`：客户端已有缓存标记时保留其管
 
 **缓存命中率低？** 同时看每次请求的缓存读取与新增输入。新会话首次写入、长代码生成、压缩、清理或切换上游都可能降低累计比例。短请求无法验证长前缀缓存，不保证固定命中率。
 
-**界面是新的，但接口 404 / 功能不生效？** 完整退出并重新打开 DSH；前端与网关可能加载了不同批次的代码。诊断状态接口 `/api/dsh-factory-provider/status` 应报告 `version: 1.4.1` 和目录版本 `1.1.0`。
+**界面是新的，但接口 404 / 功能不生效？** 完整退出并重新打开 DSH；前端与网关可能加载了不同批次的代码。诊断状态接口 `/api/dsh-factory-provider/status` 安装本版后应报告 `version: 1.4.2` 和目录版本 `1.1.0`。
 
 **子代理提示 route is not allowed？** 先让主代理调用 `list_subagent_models`，使用当前会话允许的准确 provider/model。插件的 Factory 路由与其他插件的同名模型不是同一条路由；会话授权也由 DSH 管理。
 
@@ -201,6 +211,8 @@ DSH_FACTORY_HOST_ROOT=/path/to/dsh/node_modules npm test
 ## 致谢与许可
 
 感谢 [@huangzhenhao90](https://github.com/huangzhenhao90) 通过 [PR #1](https://github.com/Dalizi2026/dsh-factory-provider/pull/1) 贡献 DeepSeek V4.1 Flash 与 GPT-6.1 Sol 的目录更新。原始提交与署名保留；维护者随后补齐旧条目清理、官方路由、预算核实、升级兼容和回归测试。
+
+感谢 [@huangzhenhao90](https://github.com/huangzhenhao90) 的 [PR #4](https://github.com/Dalizi2026/dsh-factory-provider/pull/4) 提供 Argon 工具参数流式传输、参数重组与原生宿主测试实现。1.4.2 修复基于其 `7a4785b` 移植，并补充官方字符串结束标记、真正静默时超时及大参数完整性测试；保留作者贡献说明，尚未合并远程 PR。
 
 也感谢其 [PR #2](https://github.com/Dalizi2026/dsh-factory-provider/pull/2) 的悬浮窗反馈及 [PR #3](https://github.com/Dalizi2026/dsh-factory-provider/pull/3) 的 Gemini 兼容测试建议。本次参考 PR #3 的测试方向，在现有独立 Gemini 渠道上补充签名保留、凭据隔离、错误透传和禁用保护测试；未合并该 PR 的渠道实现。
 
